@@ -9,6 +9,8 @@ namespace QUI\Translator;
 use QUI;
 use QUI\Database\Exception;
 use QUI\Package\Package;
+use QUI\Database\Tables;
+use PDO;
 
 /**
  * Class Setup
@@ -27,30 +29,32 @@ class Setup
         }
 
         $table = QUI\Translator::table();
+        $Table = self::requireTableManager();
 
         // id field
-        $exists = QUI::getDataBase()->table()->getColumn($table, 'id');
+        $exists = $Table->getColumn($table, 'id');
 
         if (!empty($exists)) {
-            QUI::getDataBase()->table()->setPrimaryKey($table, 'id');
+            $Table->setPrimaryKey($table, 'id');
             self::patchForEmptyLocales();
 
             return;
         }
 
         // create id column for old translation table
-        QUI::getDataBase()->table()->addColumn($table, [
+        $Table->addColumn($table, [
             'id' => 'INT(11) DEFAULT NULL'
         ]);
 
-        $PDO = QUI::getDataBase()->getPDO();
+        $PDO = self::requirePDO();
+
         $PDO->query(
             "SET @count = 0;
             UPDATE `$table` SET `$table`.`id` = @count:= @count + 1;"
         );
 
-        QUI::getDataBase()->table()->setPrimaryKey($table, 'id');
-        QUI::getDataBase()->table()->setAutoIncrement($table, 'id');
+        $Table->setPrimaryKey($table, 'id');
+        $Table->setAutoIncrement($table, 'id');
 
         self::patchForEmptyLocales();
     }
@@ -82,5 +86,33 @@ class Setup
                 ['id' => $entry['id']]
             );
         }
+    }
+
+    /**
+     * @throws QUI\Exception
+     */
+    protected static function requireTableManager(): Tables
+    {
+        $Table = QUI::getDataBase()->table();
+
+        if ($Table === null) {
+            throw new QUI\Exception('Database table manager is not available');
+        }
+
+        return $Table;
+    }
+
+    /**
+     * @throws QUI\Exception
+     */
+    protected static function requirePDO(): PDO
+    {
+        $PDO = QUI::getDataBase()->getPDO();
+
+        if ($PDO === null) {
+            throw new QUI\Exception('Database PDO connection is not available');
+        }
+
+        return $PDO;
     }
 }

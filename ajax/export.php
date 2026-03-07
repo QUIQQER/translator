@@ -8,15 +8,26 @@
  * @param String $group - translation group
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_export',
     function ($group, $langs, $type, $external) {
         $group = str_replace('/', '!GROUPSEPARATOR!', $group);
         $group = QUI\Utils\Security\Orthos::clear($group);
         $group = str_replace('!GROUPSEPARATOR!', '/', $group);
 
-        $langs = QUI\Utils\Security\Orthos::clearArray(
-            json_decode($langs, true)
+        $decodedLangs = json_decode($langs, true);
+
+        if (!is_array($decodedLangs)) {
+            $decodedLangs = [];
+        }
+
+        $langs = array_values(
+            array_filter(
+                QUI\Utils\Security\Orthos::clearArray($decodedLangs),
+                static function ($entry): bool {
+                    return is_string($entry);
+                }
+            )
         );
         $type = QUI\Utils\Security\Orthos::clear($type);
 

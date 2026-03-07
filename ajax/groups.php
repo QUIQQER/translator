@@ -6,7 +6,7 @@
  * @return array
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_groups',
     function () {
         return QUI\Translator::getGroupList();

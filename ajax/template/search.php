@@ -8,7 +8,7 @@
 
 use QUI\Translator;
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_template_search',
     function () {
         $Engine = QUI::getTemplateManager()->getEngine(true);

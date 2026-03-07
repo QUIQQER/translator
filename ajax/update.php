@@ -9,7 +9,7 @@
  * @throws QUI\Exception
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_update',
     function ($groups, $data, $showSuccessMessage) {
         $data = json_decode($data, true);

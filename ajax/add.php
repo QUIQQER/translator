@@ -7,7 +7,7 @@
  * @param string $var
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_add',
     function ($group, $var, $pkg, $datatype, $html) {
         $group = str_replace('/', '!GROUPSEPARATOR!', $group);

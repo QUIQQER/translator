@@ -80,6 +80,11 @@ class Translator
     protected static ?array $availableLanguages = null;
 
     /**
+     * @var string|null
+     */
+    protected static ?string $localePublishVersion = null;
+
+    /**
      * Return the real table name
      *
      * @return String
@@ -989,6 +994,34 @@ class Translator
     }
 
     /**
+     * Returns the locale publish version used for cache busting.
+     */
+    public static function getLocalePublishVersion(): string
+    {
+        if (self::$localePublishVersion !== null) {
+            return self::$localePublishVersion;
+        }
+
+        try {
+            $Config = QUI::getPackage('quiqqer/translator')->getConfig();
+            $configuredVersion = $Config?->get('locale', 'publishVersion');
+
+            if (is_string($configuredVersion) && $configuredVersion !== '') {
+                self::$localePublishVersion = $configuredVersion;
+
+                return self::$localePublishVersion;
+            }
+        } catch (\Exception) {
+            // nothing, create a new version
+        }
+
+        self::$localePublishVersion = self::createLocalePublishVersion();
+        self::saveLocalePublishVersion(self::$localePublishVersion);
+
+        return self::$localePublishVersion;
+    }
+
+    /**
      * Return all available languages
      *
      * @return list<string>|null
@@ -1295,6 +1328,7 @@ class Translator
         QUI::getLocale()->refresh();
 
         QUI\Cache\Manager::clearCompleteQuiqqerCache();
+        self::refreshLocalePublishVersion();
 
         QUI::getEvents()->fireEvent('quiqqerTranslatorPublish');
     }
@@ -1469,8 +1503,45 @@ class Translator
         QUI\Cache\Manager::clearCompleteQuiqqerCache();
 
         QUI::getLocale()->refresh();
+        self::refreshLocalePublishVersion();
 
         QUI::getEvents()->fireEvent('quiqqerTranslatorPublish');
+    }
+
+    /**
+     * Creates and persists a new locale publish version.
+     */
+    protected static function refreshLocalePublishVersion(): void
+    {
+        self::$localePublishVersion = self::createLocalePublishVersion();
+        self::saveLocalePublishVersion(self::$localePublishVersion);
+    }
+
+    /**
+     * Generate a version token for locale cache busting.
+     */
+    protected static function createLocalePublishVersion(): string
+    {
+        return md5((string)microtime(true));
+    }
+
+    /**
+     * Persist locale publish version in package config.
+     */
+    protected static function saveLocalePublishVersion(string $version): void
+    {
+        try {
+            $Config = QUI::getPackage('quiqqer/translator')->getConfig();
+
+            if (!$Config) {
+                return;
+            }
+
+            $Config->set('locale', 'publishVersion', $version);
+            $Config->save();
+        } catch (\Exception) {
+            // ignore
+        }
     }
 
     /**

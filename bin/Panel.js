@@ -409,6 +409,7 @@ define('package/quiqqer/translator/bin/Panel', [
                 var Body = self.getBody(),
                     cols = [],
                     langs = translations.langs,
+                    dev = (QUIQQER_CONFIG.globals.development).toInt(),
                     height = Body.getSize().y - 40,
                     width = Body.getSize().x - 40;
 
@@ -424,7 +425,7 @@ define('package/quiqqer/translator/bin/Panel', [
                     dataIndex: 'var',
                     dataType: 'string',
                     width: 150,
-                    editable: true
+                    editable: dev === 1
                 });
 
                 if (self.getAttribute('search')) {
@@ -444,8 +445,6 @@ define('package/quiqqer/translator/bin/Panel', [
 
                     self.$attentionBox();
                 }
-
-                var dev = (QUIQQER_CONFIG.globals.development).toInt();
 
                 // Sprachen
                 for (var i = 0, len = langs.length; i < len; i++) {
@@ -931,13 +930,11 @@ define('package/quiqqer/translator/bin/Panel', [
                 return;
             }
 
-            // html and typ only editable at development
+            // In normal mode only language content columns may be edited.
             var Column = columnModel[index],
                 dev = (QUIQQER_CONFIG.globals.development).toInt();
 
-            if (!dev && (Column.dataIndex === 'html' ||
-                Column.dataIndex === 'datatype')
-            ) {
+            if (!dev && !this.$langs.contains(Column.dataIndex)) {
                 return;
             }
 

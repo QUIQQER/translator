@@ -1220,9 +1220,7 @@ class Translator
         // clean cache dir of js files
         QUI::getTemp()->moveToTemp($dir . '/bin/_cache/');
 
-        if (method_exists(QUI::getLocale(), 'refresh')) {
-            QUI::getLocale()->refresh();
-        }
+        QUI::getLocale()->refresh();
 
         QUI\Cache\Manager::clearCompleteQuiqqerCache();
 
@@ -1387,9 +1385,7 @@ class Translator
         QUI::getTemp()->moveToTemp($dir . '/bin/_cache/');
         QUI\Cache\Manager::clearCompleteQuiqqerCache();
 
-        if (method_exists(QUI::getLocale(), 'refresh')) {
-            QUI::getLocale()->refresh();
-        }
+        QUI::getLocale()->refresh();
 
         QUI::getEvents()->fireEvent('quiqqerTranslatorPublish');
     }

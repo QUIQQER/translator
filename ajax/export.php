@@ -15,8 +15,19 @@ QUI::getAjax()->registerFunction(
         $group = QUI\Utils\Security\Orthos::clear($group);
         $group = str_replace('!GROUPSEPARATOR!', '/', $group);
 
-        $langs = QUI\Utils\Security\Orthos::clearArray(
-            json_decode($langs, true)
+        $decodedLangs = json_decode($langs, true);
+
+        if (!is_array($decodedLangs)) {
+            $decodedLangs = [];
+        }
+
+        $langs = array_values(
+            array_filter(
+                QUI\Utils\Security\Orthos::clearArray($decodedLangs),
+                static function ($entry): bool {
+                    return is_string($entry);
+                }
+            )
         );
         $type = QUI\Utils\Security\Orthos::clear($type);
 

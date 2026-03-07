@@ -33,7 +33,6 @@ use function json_decode;
 use function json_encode;
 use function ltrim;
 use function mb_strpos;
-use function method_exists;
 use function min;
 use function preg_replace_callback;
 use function set_time_limit;
@@ -71,12 +70,12 @@ class Translator
     protected static string $cacheName = 'translator';
 
     /**
-     * @var null|array
+     * @var array<string, int|false>|null
      */
     protected static ?array $localeModifyTimes = null;
 
     /**
-     * @var array|null
+     * @var list<string>|null
      */
     protected static ?array $availableLanguages = null;
 
@@ -94,7 +93,7 @@ class Translator
      * Translator setup
      * it looks, which languages are exist and create it
      */
-    public static function setup()
+    public static function setup(): void
     {
     }
 
@@ -117,14 +116,20 @@ class Translator
             );
         }
 
+        $Table = QUI::getDataBase()->table();
+
+        if ($Table === null) {
+            throw new QUI\Exception('Database table manager is not available');
+        }
+
         // if column already exists, don't refresh locale
-        $exists = QUI::getDataBase()->table()->existColumnInTable(self::table(), $lang);
+        $exists = $Table->existColumnInTable(self::table(), $lang);
 
         if ($exists) {
             return;
         }
 
-        QUI::getDataBase()->table()->addColumn(
+        $Table->addColumn(
             self::table(),
             [
                 $lang => 'text NULL',
@@ -141,7 +146,7 @@ class Translator
      * Export locale groups as xml
      *
      * @param string $group - which group should be exported? ("all" = Alle)
-     * @param array $langs - languages
+     * @param list<string> $langs - languages
      * @param string $type - "original" oder "edit"
      * @param bool $external (optional) - export translations of external groups
      * that are overwritten by the selected groups ($group) [default: false]
@@ -189,7 +194,7 @@ class Translator
      * Creates the content for a locale.xml for one or more groups/languages
      *
      * @param string $group
-     * @param array $languages
+     * @param list<string> $languages
      * @param string $editType - original, edit, edit_overwrite
      * @param bool $external (optional) - include translations of external groups
      * that are overwritten by the selected groups ($group) [default: false]
@@ -319,7 +324,7 @@ class Translator
      * @param string $packageName - name of the package
      * @param bool $force - The translation should really be executed, the $filemtimes is ignored
      *
-     * @return array - List of imported vars
+     * @return array<int, array{group: string, var: string, locale: array<string, mixed>}> - List of imported vars
      * @throws QUI\Exception
      */
     public static function import(
@@ -480,6 +485,10 @@ class Translator
     {
         $file = $Package->getXMLFilePath('locale.xml');
 
+        if (!is_string($file) || $file === '') {
+            return;
+        }
+
         if (!file_exists($file)) {
             return;
         }
@@ -516,7 +525,7 @@ class Translator
      * Note:
      * This does not recurse into locale.xml files defined by <file> tags
      *
-     * @param $file - Full system filepath to the locale.xml
+     * @param string $file - Full system filepath to the locale.xml
      * @param string $packageName - The package name of the locale.xml
      *
      * @return bool|int - Returns true on success
@@ -524,7 +533,7 @@ class Translator
      * @throws Exception|\QUI\Exception
      * @todo prepared statements
      */
-    public static function batchImport($file, string $packageName = ''): bool | int
+    public static function batchImport(string $file, string $packageName = ''): bool | int
     {
         if (!file_exists($file)) {
             throw new QUI\Exception(
@@ -561,6 +570,11 @@ class Translator
         // *********************************** //
 
         $PDO = QUI::getDataBase()->getPDO();
+
+        if ($PDO === null) {
+            throw new QUI\Exception('Database PDO connection is not available');
+        }
+
         set_time_limit((int)ini_get('max_execution_time'));
 
         $localeVariables = [];
@@ -766,6 +780,10 @@ class Translator
     ): void {
         $file = $Package->getXMLFilePath('locale.xml');
 
+        if (!is_string($file) || $file === '') {
+            return;
+        }
+
         if (!file_exists($file)) {
             return;
         }
@@ -829,9 +847,9 @@ class Translator
     /**
      * Return modify times of all imported locale xml files
      *
-     * @return array|null
+     * @return array<string, int|false>
      */
-    protected static function getLocaleModifyTimes(): ?array
+    protected static function getLocaleModifyTimes(): array
     {
         if (!is_null(self::$localeModifyTimes)) {
             return self::$localeModifyTimes;
@@ -843,11 +861,23 @@ class Translator
             file_put_contents($cacheFile, '');
         }
 
-        $list = json_decode(file_get_contents($cacheFile), true);
+        $cacheContent = file_get_contents($cacheFile);
+
+        if ($cacheContent === false || $cacheContent === '') {
+            self::$localeModifyTimes = [];
+
+            return self::$localeModifyTimes;
+        }
+
+        $list = json_decode($cacheContent, true);
+
+        if (!is_array($list)) {
+            $list = [];
+        }
 
         self::$localeModifyTimes = $list;
 
-        return $list;
+        return self::$localeModifyTimes;
     }
 
     /**
@@ -879,7 +909,7 @@ class Translator
      *
      * @param string $lang - Language -> eq: "de" or "en" ... and so on
      *
-     * @return array
+     * @return array<string, string>
      */
     public static function getJSTranslationFiles(string $lang): array
     {
@@ -924,8 +954,12 @@ class Translator
 
                 if (file_exists($lang_file)) {
                     $result['locale/' . $dir . '/' . $package] = $lang_file;
+                    $langContent = file_get_contents($lang_file);
 
-                    $cacheData .= PHP_EOL . file_get_contents($lang_file);
+                    if ($langContent !== false) {
+                        $cacheData .= PHP_EOL . $langContent;
+                    }
+
                     $require[] = 'locale/' . $dir . '/' . $package . '/' . $lang;
                 }
             }
@@ -936,6 +970,11 @@ class Translator
         }
 
         $requireEncode = json_encode($require);
+
+        if ($requireEncode === false) {
+            $requireEncode = '[]';
+        }
+
         $requireEncode = str_replace('\/', '/', $requireEncode);
 
         $cacheData .= "\n\n
@@ -952,7 +991,7 @@ class Translator
     /**
      * Return all available languages
      *
-     * @return array|null
+     * @return list<string>|null
      */
     public static function getAvailableLanguages(): ?array
     {
@@ -963,9 +1002,20 @@ class Translator
         }
 
         try {
-            self::$availableLanguages = CacheManager::get($cacheName);
+            $cachedLanguages = CacheManager::get($cacheName);
 
-            return self::$availableLanguages;
+            if (is_array($cachedLanguages)) {
+                self::$availableLanguages = array_values(
+                    array_filter(
+                        $cachedLanguages,
+                        static function ($entry): bool {
+                            return is_string($entry);
+                        }
+                    )
+                );
+
+                return self::$availableLanguages;
+            }
         } catch (\Exception) {
             // nothing, retrieve languages normally
         }
@@ -980,7 +1030,14 @@ class Translator
 
         $languages = array_unique($languages);
         $languages = array_unique(array_merge($languages, self::langs()));
-        $languages = array_values($languages);
+        $languages = array_values(
+            array_filter(
+                $languages,
+                static function ($entry): bool {
+                    return is_string($entry);
+                }
+            )
+        );
 
         CacheManager::set($cacheName, $languages);
         self::$availableLanguages = $languages;
@@ -1004,6 +1061,10 @@ class Translator
     {
         $PDO = QUI::getDataBase()->getPDO();
         $table = self::table();
+
+        if ($PDO === null) {
+            throw new QUI\Exception('Database PDO connection is not available');
+        }
 
         // check if dublicate entries exist
         $Statement = $PDO->prepare(
@@ -1037,6 +1098,10 @@ class Translator
 
             foreach ($duplicates as $duplicate) {
                 $duplicateIds[] = $duplicate['id'];
+            }
+
+            if (empty($duplicateIds)) {
+                continue;
             }
 
             $DB->delete($table, [
@@ -1138,6 +1203,12 @@ class Translator
                     $value = $entry[$lang . '_edit']; // benutzer übersetzung
                 }
 
+                if (is_array($value)) {
+                    $value = '';
+                } else {
+                    $value = (string)$value;
+                }
+
                 if ($Output) {
                     $value = $Output->parse($value);
 
@@ -1150,7 +1221,7 @@ class Translator
                 $value = str_replace('"', '\"', $value);
                 $value = str_replace("\n", '{\n}', $value);
 
-                if ($value !== '' && $value !== ' ') {
+                if (is_string($value) && $value !== '' && $value !== ' ') {
                     $value = trim($value);
                 }
 
@@ -1173,7 +1244,8 @@ class Translator
                 }
 
                 $ini = $folders[$lang] . str_replace('/', '_', $entry['groups']) . '.ini.php';
-                $ini_str = $iniVar . '= "' . $value . '"';
+                $iniValue = is_string($value) ? $value : '';
+                $ini_str = $iniVar . '= "' . $iniValue . '"';
 
                 QUIFile::mkfile($ini);
                 QUIFile::putLineToFile($ini, $ini_str);
@@ -1228,13 +1300,17 @@ class Translator
     }
 
     /**
-     * @param $str
+     * @param mixed $str
      * @return bool
      */
-    protected static function isEmpty($str): bool
+    protected static function isEmpty(mixed $str): bool
     {
         if ($str === null) {
             return false;
+        }
+
+        if (!is_string($str)) {
+            return empty($str);
         }
 
         if (str_contains($str, ' ') && strlen($str) === 1) {
@@ -1305,6 +1381,12 @@ class Translator
                     $value = $data[$lang . '_edit'];
                 }
 
+                if (is_array($value)) {
+                    $value = '';
+                } else {
+                    $value = (string)$value;
+                }
+
                 if (empty($value)) {
                     continue;
                 }
@@ -1331,7 +1413,7 @@ class Translator
                 $value = str_replace('"', '\"', $value);
                 $value = str_replace("\n", '{\n}', $value);
 
-                if ($value !== '' && $value !== ' ') {
+                if (is_string($value) && $value !== '' && $value !== ' ') {
                     $value = trim($value);
                 }
 
@@ -1354,7 +1436,8 @@ class Translator
                 }
 
                 // content
-                $iniContent .= $iniVar . '= "' . $value . '"' . PHP_EOL;
+                $iniValue = is_string($value) ? $value : '';
+                $iniContent .= $iniVar . '= "' . $iniValue . '"' . PHP_EOL;
             }
 
             // set data
@@ -1397,7 +1480,7 @@ class Translator
      * @param boolean|string $var - variable, optional
      * @param boolean|string $package - optional, package name
      *
-     * @return array
+     * @return array<int, array<string, mixed>>
      *
      * @throws QUI\DataBase\Exception
      */
@@ -1430,10 +1513,10 @@ class Translator
      * Get data for the table
      *
      * @param string $groups - Group
-     * @param array $params - optional array(limit => 10, page => 1)
-     * @param Bool|array $search - optional array(search => '%str%', fields => '')
+     * @param array<string, int|string> $params - optional array(limit => 10, page => 1)
+     * @param bool|array<string, mixed> $search - optional array(search => '%str%', fields => '')
      *
-     * @return array
+     * @return array{data: array<int, array<string, mixed>>, page: int, count: int|string, total: int|string}
      */
     public static function getData(string $groups, array $params = [], bool | array $search = false): array
     {
@@ -1611,7 +1694,7 @@ class Translator
      * @param string $var
      * @param bool|string $package
      *
-     * @return array
+     * @return array<string, mixed>
      */
     public static function getVarData(string $group, string $var, bool | string $package = false): array
     {
@@ -1646,7 +1729,7 @@ class Translator
     /**
      * List of all existing groups
      *
-     * @return array
+     * @return list<string>
      */
     public static function getGroupList(): array
     {
@@ -1750,7 +1833,7 @@ class Translator
      *
      * @param string $group
      * @param string $var
-     * @param array $data - [de='', en=>'', datatype=>'', html=>1]
+     * @param array<string, mixed> $data - [de='', en=>'', datatype=>'', html=>1]
      *
      * @throws QUI\Exception
      */
@@ -1795,7 +1878,7 @@ class Translator
      * @param string $group
      * @param string $var
      * @param string $packageName
-     * @param array $data
+     * @param array<string, mixed> $data
      *
      * @throws QUI\Exception
      * @throws QUI\DataBase\Exception
@@ -1856,7 +1939,7 @@ class Translator
      * @param string $group
      * @param string $var
      * @param string $packageName
-     * @param array $data
+     * @param array<string, mixed> $data
      *
      * @throws QUI\Exception
      * @throws QUI\DataBase\Exception
@@ -1876,7 +1959,7 @@ class Translator
      * User Edit with an entry id
      *
      * @param integer $id
-     * @param array $data
+     * @param array<string, mixed> $data
      *
      * @throws QUI\Exception
      * @throws QUI\DataBase\Exception
@@ -1893,9 +1976,9 @@ class Translator
     /**
      * Prepares the data for a translation entry
      *
-     * @param array $data
+     * @param array<string, mixed> $data
      *
-     * @return array
+     * @return array<string, mixed>
      */
     protected static function getEditData(array $data): array
     {
@@ -2014,13 +2097,19 @@ class Translator
     /**
      * Which languages are there
      *
-     * @return array
+     * @return list<string>
+     *
+     * @throws QUI\Exception
      */
     public static function langs(): array
     {
-        $fields = QUI::getDataBase()->table()->getColumns(
-            self::table()
-        );
+        $Table = QUI::getDataBase()->table();
+
+        if ($Table === null) {
+            throw new QUI\Exception('Database table manager is not available');
+        }
+
+        $fields = $Table->getColumns(self::table());
 
         $languages = [];
 
@@ -2051,7 +2140,7 @@ class Translator
     /**
      * Returns the variables to be translated
      *
-     * @return array
+     * @return array<int, array<string, mixed>>
      *
      * @throws QUI\DataBase\Exception
      */
@@ -2067,6 +2156,9 @@ class Translator
      * Parser Methoden
      */
 
+    /**
+     * @var array<int, array{groups: string, var: string}>
+     */
     protected static array $tmp = [];
 
     /**
@@ -2074,7 +2166,7 @@ class Translator
      *
      * @param string $string
      *
-     * @return array
+     * @return array<int, array{groups: string, var: string}>
      */
     public static function getTBlocksFromString(string $string): array
     {
@@ -2118,6 +2210,7 @@ class Translator
 
                 if (!str_contains($_param[0], '/') || str_contains($_param[1], ' ')) {
                     self::$tmp[] = [
+                        'groups' => '',
                         'var' => $params[2]
                     ];
                 }
@@ -2140,7 +2233,7 @@ class Translator
      *
      * @param string $string
      *
-     * @return array
+     * @return array<int, array{groups: string, var: string}>
      */
     public static function getLBlocksFromString(string $string): array
     {
@@ -2175,9 +2268,9 @@ class Translator
     /**
      * Deletes double group-var entries
      *
-     * @param array $array
+     * @param array<int, array{groups: string, var: string}> $array
      *
-     * @return array
+     * @return array<int, array{groups: string, var: string}>
      */
     public static function deleteDoubleEntries(array $array): array
     {

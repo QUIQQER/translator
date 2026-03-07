@@ -10,7 +10,7 @@
 
 use QUI\QDOM;
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_file_import',
     function ($File, $overwrite) {
         $overwrite = (int)$overwrite;

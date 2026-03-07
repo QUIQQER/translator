@@ -10,7 +10,7 @@
  * @return array
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_translations',
     function ($groups, $params, $search) {
         $languages = QUI\Translator::langs();

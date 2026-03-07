@@ -6,13 +6,13 @@
  * @return array
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_refreshLocale',
     function () {
         $result = [];
         $translations = QUI\Translator::get();
 
-        $languages = QUI\Translator::getAvailableLanguages();
+        $languages = QUI\Translator::getAvailableLanguages() ?? [];
 
         foreach ($translations as $entry) {
             if (!str_contains($entry['datatype'], 'js') && !empty($entry['datatype'])) {

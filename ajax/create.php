@@ -4,7 +4,7 @@
  * Publish translations
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_create',
     function ($group, $showSuccessMessage) {
         if (!isset($showSuccessMessage)) {

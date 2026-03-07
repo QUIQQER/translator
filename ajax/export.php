@@ -8,7 +8,7 @@
  * @param String $group - translation group
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_export',
     function ($group, $langs, $type, $external) {
         $group = str_replace('/', '!GROUPSEPARATOR!', $group);

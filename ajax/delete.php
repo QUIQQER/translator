@@ -6,7 +6,7 @@
  * @param string $data - JSON Array
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_delete',
     function ($data) {
         $data = json_decode($data, true);

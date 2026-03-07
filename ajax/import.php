@@ -6,7 +6,7 @@
  * @param string $data - JSON Array
  */
 
-QUI::$Ajax->registerFunction(
+QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_import',
     function ($overwriteOriginal, $File) {
         $overwriteOriginal = QUI\Utils\Security\Orthos::clear($overwriteOriginal);

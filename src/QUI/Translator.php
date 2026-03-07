@@ -998,7 +998,7 @@ class Translator
      */
     public static function getLocalePublishVersion(): string
     {
-        if (self::$localePublishVersion !== null) {
+        if (is_string(self::$localePublishVersion) && self::$localePublishVersion !== '') {
             return self::$localePublishVersion;
         }
 
@@ -1009,16 +1009,17 @@ class Translator
             if (is_string($configuredVersion) && $configuredVersion !== '') {
                 self::$localePublishVersion = $configuredVersion;
 
-                return self::$localePublishVersion;
+                return $configuredVersion;
             }
         } catch (\Exception) {
             // nothing, create a new version
         }
 
-        self::$localePublishVersion = self::createLocalePublishVersion();
-        self::saveLocalePublishVersion(self::$localePublishVersion);
+        $version = self::createLocalePublishVersion();
+        self::$localePublishVersion = $version;
+        self::saveLocalePublishVersion($version);
 
-        return self::$localePublishVersion;
+        return $version;
     }
 
     /**

@@ -1,9 +1,6 @@
 /**
  * Create new translation variable
  *
- * @module package/quiqqer/translator/bin/controls/Create
- * @author www.pcsg.de (Henning Leutz)
- *
  * @event onChange
  */
 define('package/quiqqer/translator/bin/controls/Create', [

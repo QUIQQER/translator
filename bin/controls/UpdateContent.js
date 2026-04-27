@@ -1,9 +1,6 @@
 /**
  * Displays the variable and the control can update the translation variable
  *
- * @module package/quiqqer/translator/bin/controls/UpdateContent
- * @author www.pcsg.de (Henning Leutz)
- *
  * @event onChange
  * @event onSaveBegin [self]
  * @event onSave [self]

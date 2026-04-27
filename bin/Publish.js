@@ -1,12 +1,6 @@
 /**
  * Publish the translations
- *
- * @module package/quiqqer/translator/bin/Publish
- * @author www.pcsg.de (Henning Leutz)
- *
- * @require Ajax
  */
-
 define(['Ajax'], function (Ajax) {
     "use strict";
 

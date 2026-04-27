@@ -1,8 +1,5 @@
 /**
  * Translator panel
- *
- * @module package/quiqqer/translator/bin/Panel
- * @author www.pcsg.de (Henning Leutz)
  */
 define('package/quiqqer/translator/bin/Panel', [
 
@@ -952,16 +949,24 @@ define('package/quiqqer/translator/bin/Panel', [
                 this.$Editor.setContent(cellContent);
 
                 if ((localeData.html).toInt() === 1) {
-                    this.$Editor.switchToWYSIWYG();
-                    this.$Editor.showToolbar();
+                    if (typeof this.$Editor.hideSourceCode === 'function') {
+                        this.$Editor.hideSourceCode();
+                    } else {
+                        this.$Editor.switchToWYSIWYG();
+                    }
 
+                    this.$Editor.showToolbar();
                 } else {
-                    this.$Editor.switchToSource();
+                    if (typeof this.$Editor.showSourceCode === 'function') {
+                        this.$Editor.showSourceCode();
+                    } else {
+                        this.$Editor.switchToSource();
+                    }
+
                     this.$Editor.hideToolbar();
                 }
 
                 this.$Editor.focus();
-
                 return;
             }
 
@@ -994,10 +999,20 @@ define('package/quiqqer/translator/bin/Panel', [
 
                 self.$Editor.addEvent('onLoaded', function() {
                     if ((localeData.html).toInt() === 1) {
-                        self.$Editor.switchToWYSIWYG();
+                        if (typeof self.$Editor.hideSourceCode === 'function') {
+                            self.$Editor.hideSourceCode();
+                        } else {
+                            self.$Editor.switchToWYSIWYG();
+                        }
+
                         self.$Editor.showToolbar();
                     } else {
-                        self.$Editor.switchToSource();
+                        if (typeof self.$Editor.showSourceCode === 'function') {
+                            self.$Editor.showSourceCode();
+                        } else {
+                            self.$Editor.switchToSource();
+                        }
+
                         self.$Editor.hideToolbar();
                     }
 

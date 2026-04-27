@@ -1,8 +1,5 @@
 /**
  * Displays one translation variable
- *
- * @package package/quiqqer/translator/bin/controls/VariableTranslation
- * @author www.pcsg.de (Henning Leutz)
  */
 define('package/quiqqer/translator/bin/controls/VariableTranslation', [
 

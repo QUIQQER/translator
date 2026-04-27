@@ -1,13 +1,5 @@
 /**
  * Translator
- *
- * @author www.pcsg.de (Henning Leutz)
- * @package package/quiqqer/translator/bin/classes/Translator
- *
- * @require qui/QUI
- * @require qui/classes/DOM
- * @require Ajax
- * @require Locale
  */
 define('package/quiqqer/translator/bin/classes/Translator', [
 

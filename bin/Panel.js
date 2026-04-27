@@ -1,8 +1,5 @@
 /**
  * Translator panel
- *
- * @module package/quiqqer/translator/bin/Panel
- * @author www.pcsg.de (Henning Leutz)
  */
 define('package/quiqqer/translator/bin/Panel', [
 

@@ -1,13 +1,5 @@
 /**
  * Translator delete variables method
- *
- * @module package/quiqqer/translator/bin/DeleteVariables
- * @author www.pcsg.de (Henning Leutz)
- *
- * @require package/quiqqer/translator/bin/Panel
- * @require Locale
- * @require Ajax
- * @require qui/controls/windows/Confirm
  */
 define('package/quiqqer/translator/bin/DeleteVariables', [
 

@@ -1,8 +1,5 @@
 /**
  * Translator add variable method
- *
- * @module package/quiqqer/translator/bin/AddVariable
- * @author www.pcsg.de (Henning Leutz)
  */
 define('package/quiqqer/translator/bin/AddVariable', [
 

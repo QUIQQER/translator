@@ -200,6 +200,38 @@ class Provider implements ProviderInterface
                 ]
             ]
         );
+
+        $serverBuilder->addTool(
+            function (array | null $groups = null, bool | null $all = null): CallToolResult | array {
+                try {
+                    self::checkPermission();
+
+                    return self::publishLanguageVariables($groups, !empty($all));
+                } catch (Throwable $e) {
+                    return ToolHelper::parseExceptionToResult($e);
+                }
+            },
+            name: 'translator_language_variables_publish',
+            description: 'Publishes translator language variable groups. Publishes all groups when no groups are provided.',
+            inputSchema: [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'properties' => [
+                    'groups' => [
+                        'type' => 'array',
+                        'description' => 'Optional list of translation groups to publish.',
+                        'items' => [
+                            'type' => 'string'
+                        ]
+                    ],
+                    'all' => [
+                        'type' => 'boolean',
+                        'description' => 'Publish all translation groups.',
+                        'default' => false
+                    ]
+                ]
+            ]
+        );
     }
 
     /**
@@ -368,6 +400,49 @@ class Provider implements ProviderInterface
             'count' => $result['count'],
             'total' => $result['total'],
             'languages' => $selectedLanguages
+        ];
+    }
+
+    /**
+     * @param array<int, mixed>|null $groups
+     * @return array{publishedGroups: list<string>, count: int, scope: string}
+     *
+     * @throws QUI\Exception
+     */
+    protected static function publishLanguageVariables(?array $groups, bool $publishAll): array
+    {
+        $selectedGroups = [];
+
+        if (!$publishAll && !empty($groups)) {
+            foreach ($groups as $group) {
+                if (!is_string($group)) {
+                    continue;
+                }
+
+                $group = trim($group);
+
+                if ($group === '') {
+                    continue;
+                }
+
+                $selectedGroups[] = $group;
+            }
+        }
+
+        if ($publishAll || empty($selectedGroups)) {
+            $selectedGroups = QUI\Translator::getGroupList();
+        }
+
+        $selectedGroups = array_values(array_unique($selectedGroups));
+
+        foreach ($selectedGroups as $group) {
+            QUI\Translator::publish($group);
+        }
+
+        return [
+            'publishedGroups' => $selectedGroups,
+            'count' => count($selectedGroups),
+            'scope' => $publishAll || empty($groups) ? 'all' : 'selection'
         ];
     }
 

@@ -28,7 +28,7 @@ class Provider implements ProviderInterface
     {
         $serverBuilder->addTool(
             function (
-                int | null $limit = null,   
+                int | null $limit = null,
                 int | null $page = null,
                 array | null $languages = null,
                 string | null $group = null

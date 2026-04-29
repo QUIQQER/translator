@@ -158,7 +158,7 @@ class Translator
      *
      * @return string
      *
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function export(string $group, array $langs, string $type, bool $external = false): string
     {
@@ -1089,7 +1089,7 @@ class Translator
      *
      * @return void
      *
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function cleanup(): void
     {
@@ -1554,7 +1554,7 @@ class Translator
      *
      * @return array<int, array<string, mixed>>
      *
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function get(
         bool | string $group = false,
@@ -1953,7 +1953,7 @@ class Translator
      * @param array<string, mixed> $data
      *
      * @throws QUI\Exception
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function update(string $group, string $var, string $packageName, array $data): void
     {
@@ -2014,7 +2014,7 @@ class Translator
      * @param array<string, mixed> $data
      *
      * @throws QUI\Exception
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function edit(string $group, string $var, string $packageName, array $data): void
     {
@@ -2034,7 +2034,7 @@ class Translator
      * @param array<string, mixed> $data
      *
      * @throws QUI\Exception
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function editById(int $id, array $data): void
     {
@@ -2130,7 +2130,7 @@ class Translator
      * @param string $group
      * @param string $var
      *
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function delete(string $group, string $var): void
     {
@@ -2152,7 +2152,7 @@ class Translator
      *
      * @param integer $id
      *
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function deleteById(int $id): void
     {
@@ -2214,7 +2214,7 @@ class Translator
      *
      * @return array<int, array<string, mixed>>
      *
-     * @throws QUI\DataBase\Exception
+     * @throws QUI\Database\Exception
      */
     public static function getNeedles(): array
     {

@@ -18,6 +18,26 @@ use QUI\Utils\Doctrine as DoctrineUtils;
  */
 class Setup
 {
+    protected static function introspectTranslatorTable(string $table): \Doctrine\DBAL\Schema\Table
+    {
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
+        }
+
+        try {
+            $SchemaManager = QUI::getSchemaManager();
+
+            // @phpstan-ignore function.alreadyNarrowedType
+            if (method_exists($SchemaManager, 'introspectTableByUnquotedName')) {
+                return $SchemaManager->introspectTableByUnquotedName($table);
+            }
+
+            return $SchemaManager->introspectTable($table);
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
+    }
+
     /**
      * @param Package $Package
      * @throws QUI\Exception
@@ -38,9 +58,9 @@ class Setup
         $quotedId = DoctrineUtils::quoteIdentifier('id');
         $Connection = QUI::getDataBaseConnection();
 
-        try {
-            $Table = QUI::getSchemaManager()->introspectTableByUnquotedName($table);
+        $Table = self::introspectTranslatorTable($table);
 
+        try {
             if (!$Table->hasColumn('id')) {
                 $Connection->executeStatement("ALTER TABLE $quotedTable ADD $quotedId INT(11) DEFAULT NULL");
                 $Connection->executeStatement('SET @count = 0');

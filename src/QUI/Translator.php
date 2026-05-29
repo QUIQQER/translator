@@ -101,6 +101,28 @@ class Translator
         return new Exception($Exception->getMessage(), $Exception->getCode());
     }
 
+    protected static function introspectTranslatorTable(): \Doctrine\DBAL\Schema\Table
+    {
+        $table = self::table();
+
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
+        }
+
+        try {
+            $SchemaManager = QUI::getSchemaManager();
+
+            // @phpstan-ignore function.alreadyNarrowedType
+            if (method_exists($SchemaManager, 'introspectTableByUnquotedName')) {
+                return $SchemaManager->introspectTableByUnquotedName($table);
+            }
+
+            return $SchemaManager->introspectTable($table);
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
+    }
+
     /**
      * @param array<string, mixed> $data
      * @return array<string, mixed>
@@ -264,17 +286,8 @@ class Translator
         }
 
         $Connection = QUI::getDataBaseConnection();
+        $Table = self::introspectTranslatorTable();
         $table = self::table();
-
-        if ($table === '') {
-            throw new QUI\Exception('Database table name is not available');
-        }
-
-        try {
-            $Table = QUI::getSchemaManager()->introspectTableByUnquotedName($table);
-        } catch (DbalException $Exception) {
-            throw self::createDatabaseException($Exception);
-        }
 
         if ($Table->hasColumn($lang)) {
             return;
@@ -2353,19 +2366,7 @@ class Translator
      */
     public static function langs(): array
     {
-        $table = self::table();
-
-        if ($table === '') {
-            throw new QUI\Exception('Database table name is not available');
-        }
-
-        try {
-            $columns = QUI::getSchemaManager()
-                ->introspectTableByUnquotedName($table)
-                ->getColumns();
-        } catch (DbalException $Exception) {
-            throw self::createDatabaseException($Exception);
-        }
+        $columns = self::introspectTranslatorTable()->getColumns();
 
         $fields = [];
 

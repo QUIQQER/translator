@@ -922,7 +922,6 @@ class Translator
             return [];
         }
 
-        $require = ['Locale'];
         $result = [];
 
         $jsDir = self::dir() . 'bin/';
@@ -936,7 +935,7 @@ class Translator
         }
 
         $dirs = QUIFile::readDir($jsDir);
-        $cacheData = '';
+        $localeSetCalls = [];
 
         foreach ($dirs as $dir) {
             $package_dir = $jsDir . $dir;
@@ -961,11 +960,16 @@ class Translator
                     $result['locale/' . $dir . '/' . $package] = $lang_file;
                     $langContent = file_get_contents($lang_file);
 
-                    if ($langContent !== false) {
-                        $cacheData .= PHP_EOL . $langContent;
-                    }
+                    if (
+                        $langContent !== false
+                        && !self::isEmptyJavaScriptLocaleFile($langContent)
+                    ) {
+                        $localeSetCall = self::getJavaScriptLocaleSetCall($langContent);
 
-                    $require[] = 'locale/' . $dir . '/' . $package . '/' . $lang;
+                        if ($localeSetCall !== null) {
+                            $localeSetCalls[] = $localeSetCall;
+                        }
+                    }
                 }
             }
         }
@@ -974,23 +978,40 @@ class Translator
             return $result;
         }
 
-        $requireEncode = json_encode($require);
-
-        if ($requireEncode === false) {
-            $requireEncode = '[]';
-        }
-
-        $requireEncode = str_replace('\/', '/', $requireEncode);
-
-        $cacheData .= "\n\n
-            require($requireEncode);
-            \n\n
-            define('locale/_cache/$lang', $requireEncode, function(Locale) {return Locale})
-        ";
+        $cacheData = "define('locale/_cache/$lang', ['Locale'], function(Locale) {";
+        $cacheData .= PHP_EOL . implode(PHP_EOL, $localeSetCalls);
+        $cacheData .= PHP_EOL . 'return Locale;';
+        $cacheData .= PHP_EOL . '});';
 
         file_put_contents($cacheFile, $cacheData);
 
         return ['locale/_cache' => $cacheFile];
+    }
+
+    /**
+     * Extracts the Locale.set() call from a generated JavaScript locale module.
+     */
+    protected static function getJavaScriptLocaleSetCall(string $content): ?string
+    {
+        if (preg_match('/Locale\.set\((.*)\)\s*;?\s*\}\);?\s*$/s', trim($content), $matches) !== 1) {
+            return null;
+        }
+
+        return 'Locale.set(' . $matches[1] . ');';
+    }
+
+    /**
+     * Checks if a generated JavaScript locale module contains no translations.
+     */
+    protected static function isEmptyJavaScriptLocaleFile(string $content): bool
+    {
+        $localeSetCall = self::getJavaScriptLocaleSetCall($content);
+
+        if ($localeSetCall === null) {
+            return false;
+        }
+
+        return preg_match('/,\s*(?:\[\]|\{\})\s*\);$/', $localeSetCall) === 1;
     }
 
     /**

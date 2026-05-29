@@ -78,6 +78,49 @@ PHP;
         ], $result);
     }
 
+    public function testEmptyJavaScriptLocaleFilesAreDetected(): void
+    {
+        $RefClass = new ReflectionClass(Translator::class);
+        $Method = $RefClass->getMethod('isEmptyJavaScriptLocaleFile');
+
+        $this->assertTrue($Method->invoke(
+            null,
+            <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", [])});
+JS
+        ));
+
+        $this->assertTrue($Method->invoke(
+            null,
+            <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", {})});
+JS
+        ));
+
+        $this->assertFalse($Method->invoke(
+            null,
+            <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", {"key":"value"})});
+JS
+        ));
+    }
+
+    public function testJavaScriptLocaleSetCallIsExtracted(): void
+    {
+        $RefClass = new ReflectionClass(Translator::class);
+        $Method = $RefClass->getMethod('getJavaScriptLocaleSetCall');
+
+        $this->assertSame(
+            'Locale.set("en", "vendor/package", {"key":"value"});',
+            $Method->invoke(
+                null,
+                <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", {"key":"value"})});
+JS
+            )
+        );
+    }
+
     public function testLocalePublishVersionIsPersistedInPackageConfig(): void
     {
         $Package = QUI::getPackage('quiqqer/translator');

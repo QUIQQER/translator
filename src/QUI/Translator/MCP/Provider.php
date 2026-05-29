@@ -2,6 +2,7 @@
 
 namespace QUI\Translator\MCP;
 
+use Doctrine\DBAL\Exception as DbalException;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\Builder;
 use QUI;
@@ -9,6 +10,7 @@ use QUI\AI\MCP\ProviderInterface;
 use QUI\AI\MCP\Server;
 use QUI\AI\MCP\ToolHelper;
 use QUI\Permissions\Permission;
+use QUI\Utils\Doctrine as DoctrineUtils;
 use Throwable;
 
 class Provider implements ProviderInterface
@@ -255,21 +257,32 @@ class Provider implements ProviderInterface
             $where['groups'] = $group;
         }
 
-        $query = [
-            'from' => QUI\Translator::table(),
-            'limit' => self::createLimit($limit, $page)
-        ];
+        $Connection = QUI::getDataBaseConnection();
+        $table = DoctrineUtils::quoteIdentifier(QUI\Translator::table());
 
-        if (!empty($where)) {
-            $query['where'] = $where;
+        try {
+            $DataQuery = $Connection->createQueryBuilder()
+                ->select('*')
+                ->from($table)
+                ->setFirstResult(($page - 1) * $limit)
+                ->setMaxResults($limit);
+
+            $CountQuery = $Connection->createQueryBuilder()
+                ->select('COUNT(*) AS ' . DoctrineUtils::quoteIdentifier('id'))
+                ->from($table);
+
+            if (!empty($where)) {
+                $DataQuery->where(DoctrineUtils::quoteIdentifier('groups') . ' = :groups')
+                    ->setParameter('groups', $where['groups']);
+                $CountQuery->where(DoctrineUtils::quoteIdentifier('groups') . ' = :groups')
+                    ->setParameter('groups', $where['groups']);
+            }
+
+            $data = $DataQuery->executeQuery()->fetchAllAssociative();
+            $count = $CountQuery->executeQuery()->fetchAllAssociative();
+        } catch (DbalException $Exception) {
+            throw new QUI\Database\Exception($Exception->getMessage(), (int)$Exception->getCode());
         }
-
-        $countQuery = $query;
-        $countQuery['count'] = 'id';
-        unset($countQuery['limit']);
-
-        $data = QUI::getDataBase()->fetch($query);
-        $count = QUI::getDataBase()->fetch($countQuery);
         $availableLanguages = QUI\Translator::langs();
         $selectedLanguages = self::filterLanguages($languages, $availableLanguages);
 
@@ -461,17 +474,25 @@ class Provider implements ProviderInterface
      */
     protected static function getExactEntry(string $group, string $var, string $package): array
     {
-        $result = QUI::getDataBase()->fetch([
-            'from' => QUI\Translator::table(),
-            'where' => [
-                'groups' => $group,
-                'var' => $var,
-                'package' => $package
-            ],
-            'limit' => 1
-        ]);
+        try {
+            $result = QUI::getDataBaseConnection()
+                ->createQueryBuilder()
+                ->select('*')
+                ->from(DoctrineUtils::quoteIdentifier(QUI\Translator::table()))
+                ->where(DoctrineUtils::quoteIdentifier('groups') . ' = :groups')
+                ->andWhere(DoctrineUtils::quoteIdentifier('var') . ' = :var')
+                ->andWhere(DoctrineUtils::quoteIdentifier('package') . ' = :package')
+                ->setParameter('groups', $group)
+                ->setParameter('var', $var)
+                ->setParameter('package', $package)
+                ->setMaxResults(1)
+                ->executeQuery()
+                ->fetchAssociative();
+        } catch (DbalException $Exception) {
+            throw new QUI\Database\Exception($Exception->getMessage(), (int)$Exception->getCode());
+        }
 
-        return $result[0] ?? [];
+        return $result ?: [];
     }
 
     protected static function normalizeLimit(?int $limit): int

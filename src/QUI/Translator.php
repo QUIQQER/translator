@@ -6,11 +6,13 @@
 
 namespace QUI;
 
+use Doctrine\DBAL\Exception as DbalException;
+use Doctrine\DBAL\Query\QueryBuilder;
 use DOMElement;
-use PDO;
 use QUI;
 use QUI\Cache\Manager as CacheManager;
 use QUI\Database\Exception;
+use QUI\Utils\Doctrine as DoctrineUtils;
 use QUI\Utils\StringHelper;
 use QUI\Utils\System\File as QUIFile;
 use QUI\Utils\Text\XML;
@@ -94,6 +96,146 @@ class Translator
         return QUI::getDBTableName('translate');
     }
 
+    protected static function createDatabaseException(DbalException $Exception): Exception
+    {
+        return new Exception($Exception->getMessage(), $Exception->getCode());
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    protected static function quoteDbalArrayKeys(array $data): array
+    {
+        $quoted = [];
+
+        foreach ($data as $key => $value) {
+            $quoted[DoctrineUtils::quoteIdentifier((string)$key)] = $value;
+        }
+
+        return $quoted;
+    }
+
+    /**
+     * @param array<string, mixed> $query
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws Exception
+     */
+    protected static function fetchDbal(array $query): array
+    {
+        $QueryBuilder = QUI::getQueryBuilder();
+
+        $select = $query['select'] ?? '*';
+
+        if (isset($query['count'])) {
+            $countField = (string)$query['count'];
+            $select = 'COUNT(*) AS ' . DoctrineUtils::quoteIdentifier($countField);
+        }
+
+        if (is_array($select)) {
+            $select = array_map(
+                static fn ($field): string => DoctrineUtils::quoteIdentifier((string)$field),
+                $select
+            );
+            $QueryBuilder->select(...$select);
+        } else {
+            $select = (string)$select;
+
+            if ($select !== '*' && !str_contains($select, '(') && !str_contains($select, ' ')) {
+                $select = DoctrineUtils::quoteIdentifier($select);
+            }
+
+            $QueryBuilder->select($select);
+        }
+
+        $QueryBuilder->from(DoctrineUtils::quoteIdentifier((string)$query['from']));
+
+        self::applyDbalWhere($QueryBuilder, $query['where'] ?? null, false);
+        self::applyDbalWhere($QueryBuilder, $query['where_or'] ?? null, true);
+
+        if (!empty($query['group'])) {
+            $QueryBuilder->groupBy(DoctrineUtils::quoteIdentifier((string)$query['group']));
+        }
+
+        if (!empty($query['order'])) {
+            $order = explode(' ', (string)$query['order']);
+            $QueryBuilder->orderBy(
+                DoctrineUtils::quoteIdentifier($order[0]),
+                $order[1] ?? null
+            );
+        }
+
+        if (isset($query['limit'])) {
+            $limit = explode(',', (string)$query['limit']);
+
+            if ($limit[0] !== '') {
+                $QueryBuilder->setFirstResult((int)$limit[0]);
+            }
+
+            if (count($limit) > 1 && $limit[1] !== '') {
+                $QueryBuilder->setMaxResults((int)$limit[1]);
+            }
+        }
+
+        try {
+            return $QueryBuilder->executeQuery()->fetchAllAssociative();
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
+    }
+
+    protected static function applyDbalWhere(QueryBuilder $QueryBuilder, mixed $where, bool $or): void
+    {
+        if (empty($where)) {
+            return;
+        }
+
+        if (is_string($where)) {
+            $or ? $QueryBuilder->orWhere($where) : $QueryBuilder->andWhere($where);
+            return;
+        }
+
+        if (!is_array($where)) {
+            return;
+        }
+
+        $expressions = [];
+        $index = 0;
+
+        foreach ($where as $field => $value) {
+            $parameter = 'where_' . count($QueryBuilder->getParameters()) . '_' . $index;
+            $quotedField = DoctrineUtils::quoteIdentifier((string)$field);
+
+            if (is_array($value) && ($value['type'] ?? null) === '%LIKE%') {
+                $expressions[] = $QueryBuilder->expr()->like($quotedField, ':' . $parameter);
+                $QueryBuilder->setParameter($parameter, '%' . $value['value'] . '%');
+                $index++;
+                continue;
+            }
+
+            if (is_array($value) && ($value['type'] ?? null) === 'NOT') {
+                $expressions[] = $QueryBuilder->expr()->neq($quotedField, ':' . $parameter);
+                $QueryBuilder->setParameter($parameter, $value['value'] ?? null);
+                $index++;
+                continue;
+            }
+
+            if ($value === null) {
+                $expressions[] = $QueryBuilder->expr()->isNull($quotedField);
+                $index++;
+                continue;
+            }
+
+            $expressions[] = $QueryBuilder->expr()->eq($quotedField, ':' . $parameter);
+            $QueryBuilder->setParameter($parameter, $value);
+            $index++;
+        }
+
+        $expression = '(' . implode($or ? ' OR ' : ' AND ', $expressions) . ')';
+        $or ? $QueryBuilder->orWhere($expression) : $QueryBuilder->andWhere($expression);
+    }
+
     /**
      * Translator setup
      * it looks, which languages are exist and create it
@@ -121,26 +263,34 @@ class Translator
             );
         }
 
-        $Table = QUI::getDataBase()->table();
+        $Connection = QUI::getDataBaseConnection();
+        $table = self::table();
 
-        if ($Table === null) {
-            throw new QUI\Exception('Database table manager is not available');
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
         }
 
-        // if column already exists, don't refresh locale
-        $exists = $Table->existColumnInTable(self::table(), $lang);
+        try {
+            $Table = QUI::getSchemaManager()->introspectTableByUnquotedName($table);
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
-        if ($exists) {
+        if ($Table->hasColumn($lang)) {
             return;
         }
 
-        $Table->addColumn(
-            self::table(),
-            [
-                $lang => 'text NULL',
-                $lang . '_edit' => 'text NULL'
-            ]
-        );
+        $quotedTable = DoctrineUtils::quoteIdentifier($table);
+        $quotedLang = DoctrineUtils::quoteIdentifier($lang);
+        $quotedEditLang = DoctrineUtils::quoteIdentifier($lang . '_edit');
+
+        try {
+            $Connection->executeStatement(
+                "ALTER TABLE $quotedTable ADD $quotedLang TEXT NULL, ADD $quotedEditLang TEXT NULL"
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
         if (file_exists(VAR_DIR . 'locale/localefiles')) {
             unlink(VAR_DIR . 'locale/localefiles');
@@ -148,7 +298,7 @@ class Translator
     }
 
     /**
-     * Export locale groups as xml
+     * Export locale groups as XML
      *
      * @param string $group - which group should be exported? ("all" = Alle)
      * @param list<string> $langs - languages
@@ -549,7 +699,7 @@ class Translator
             );
         }
 
-        // Check xml format
+        // Check XML format
         try {
             $groups = XML::getLocaleGroupsFromDom(
                 XML::getDomFromXml($file)
@@ -574,15 +724,12 @@ class Translator
         //         Database Operations
         // *********************************** //
 
-        $PDO = QUI::getDataBase()->getPDO();
-
-        if ($PDO === null) {
-            throw new QUI\Exception('Database PDO connection is not available');
-        }
+        $Connection = QUI::getDataBaseConnection();
 
         set_time_limit((int)ini_get('max_execution_time'));
 
         $localeVariables = [];
+        $languages = self::langs();
 
         foreach ($groups as $locales) {
             $group = $locales['group'];
@@ -619,7 +766,6 @@ class Translator
                     $localePackageName = $locale['package'];
                 }
 
-                // Add locale variable to the batch
                 $localeVariable = [
                     'group' => $group,
                     'var' => $var,
@@ -629,139 +775,95 @@ class Translator
                     'package' => $localePackageName
                 ];
 
-                foreach (self::langs() as $lang) {
+                foreach ($languages as $lang) {
                     if (isset($locale[$lang])) {
                         $localeVariable[$lang] = $locale[$lang];
                     }
                 }
 
-                // Add the data into the array using the key: group/variable
-                $localeVariables[trim($group) . "/" . trim($var)] = $localeVariable;
+                $localeVariables[trim($group) . '/' . trim($var)] = $localeVariable;
             }
         }
 
-        $sql = "";
-        // ************************** //
-        //           Update
-        // ************************** //
-        $currentRows = QUI::getDataBase()->fetch([
-            "select" => [
-                "id",
-                "groups",
-                "var",
-            ],
-            "from" => self::table(),
-            "where" => [
-                "package" => $packageName
-            ]
-        ]);
+        $hasOperations = false;
+        $table = DoctrineUtils::quoteIdentifier(self::table());
 
-        foreach ($currentRows as $currentRow) {
-            $varGroup = trim($currentRow['groups']);
-            $varName = trim($currentRow['var']);
+        try {
+            $currentRows = self::fetchDbal([
+                'select' => [
+                    'id',
+                    'groups',
+                    'var',
+                ],
+                'from' => self::table(),
+                'where' => [
+                    'package' => $packageName
+                ]
+            ]);
 
-            // Check if this xml contains the locale variable.
-            // if it does not contain it, skip it
-            if (!isset($localeVariables[$varGroup . "/" . $varName])) {
-                continue;
-            }
+            foreach ($currentRows as $currentRow) {
+                $varGroup = trim($currentRow['groups']);
+                $varName = trim($currentRow['var']);
 
-            $var = $localeVariables[$varGroup . "/" . $varName];
-
-            // Build a string containing all languages
-            $updateFieldString = "";
-
-            foreach (self::langs() as $langCode) {
-                if (isset($var[$langCode])) {
-                    $updateFieldString .= $langCode . "=" . $PDO->quote($var[$langCode]) . ", ";
-                }
-            }
-
-            $updateFieldString .= "datatype=" . $PDO->quote($var['datatype']) . ", ";
-            $updateFieldString = trim($updateFieldString, ", ");
-
-            if (empty($updateFieldString)) {
-                continue;
-            }
-
-            $sql .= "UPDATE " . self::table();
-            $sql .= " SET ";
-            $sql .= $updateFieldString;
-            $sql .= " WHERE id=" . $PDO->quote($currentRow['id']) . ";";
-            $sql .= PHP_EOL;
-
-            unset($localeVariables[$varGroup . "/" . $varName]);
-        }
-
-        // ************************** //
-        //           Insert
-        // ************************** //
-
-        // Add backticks to all languages
-        $langColumns = array_map(function ($lang) {
-            return "`$lang`";
-        }, self::langs());
-
-        $langColumns = implode(",", $langColumns);
-
-        foreach ($localeVariables as $var) {
-            //Check if at least one active language will be inserted
-            // @TODO check if this part can be improved
-            $containsActiveLanguage = false;
-
-            foreach (self::langs() as $langCode) {
-                if (isset($var[$langCode])) {
-                    $containsActiveLanguage = true;
-                }
-            }
-
-            if (!$containsActiveLanguage) {
-                continue;
-            }
-
-            // Insert the locale variable
-            $langValues = "";
-
-            foreach (self::langs() as $langCode) {
-                if (!isset($var[$langCode])) {
-                    $langValues .= "null" . ",";
+                if (!isset($localeVariables[$varGroup . '/' . $varName])) {
                     continue;
                 }
 
-                $langValues .= $PDO->quote($var[$langCode]) . ",";
+                $var = $localeVariables[$varGroup . '/' . $varName];
+                $updateData = [];
+
+                foreach ($languages as $langCode) {
+                    if (isset($var[$langCode])) {
+                        $updateData[$langCode] = $var[$langCode];
+                    }
+                }
+
+                $updateData['datatype'] = $var['datatype'];
+
+                $hasOperations = true;
+                $Connection->update($table, self::quoteDbalArrayKeys($updateData), self::quoteDbalArrayKeys([
+                    'id' => $currentRow['id']
+                ]));
+
+                unset($localeVariables[$varGroup . '/' . $varName]);
             }
 
-            $langValues = trim($langValues, ", ");
+            foreach ($localeVariables as $var) {
+                $containsActiveLanguage = false;
+                $insertData = [
+                    'groups' => $var['group'],
+                    'var' => $var['var'],
+                    'datatype' => $var['datatype'],
+                    'html' => $var['html'],
+                    'priority' => $var['priority'],
+                    'package' => $var['package']
+                ];
 
-            $sql .= "INSERT INTO `" . self::table() . "` ";
-            $sql .= " (`groups`, `var`, `datatype`, `html`, `priority`, `package`, " . $langColumns . ")";
+                foreach ($languages as $langCode) {
+                    if (isset($var[$langCode])) {
+                        $containsActiveLanguage = true;
+                        $insertData[$langCode] = $var[$langCode];
+                    }
+                }
 
-            // Build the value clause VALUES('','',[...])
-            $sql .= " VALUES (";
-            $sql .= $PDO->quote($var['group']) . ",";
-            $sql .= $PDO->quote($var['var']) . ",";
-            $sql .= $PDO->quote($var['datatype']) . ",";
-            $sql .= $PDO->quote($var['html']) . ",";
-            $sql .= $PDO->quote($var['priority']) . ",";
-            $sql .= $PDO->quote($var['package']) . ",";
-            $sql .= $langValues;
-            $sql .= ");";
-            $sql .= PHP_EOL;
-        }
+                if (!$containsActiveLanguage) {
+                    continue;
+                }
 
-        if (empty($sql)) {
-            return true;
-        }
-
-        $result = $PDO->exec($sql);
-
-        if ($result === false) {
+                $hasOperations = true;
+                $Connection->insert($table, self::quoteDbalArrayKeys($insertData));
+            }
+        } catch (DbalException $Exception) {
             throw new QUI\Exception(
                 QUI::getLocale()->get('quiqqer/translator', 'exception.batch.query.error', [
                     'file' => $file,
-                    'error' => $PDO->errorInfo()[2]
+                    'error' => $Exception->getMessage()
                 ])
             );
+        }
+
+        if (!$hasOperations) {
+            return true;
         }
 
         self::setLocaleFileModifyTime($file);
@@ -850,7 +952,7 @@ class Translator
     }
 
     /**
-     * Return modify times of all imported locale xml files
+     * Return modify times of all imported locale XML files
      *
      * @return array<string, int|false>
      */
@@ -1047,6 +1149,7 @@ class Translator
      * Return all available languages
      *
      * @return list<string>|null
+     * @throws Exception|\QUI\Exception
      */
     public static function getAvailableLanguages(): ?array
     {
@@ -1114,60 +1217,63 @@ class Translator
      */
     public static function cleanup(): void
     {
-        $PDO = QUI::getDataBase()->getPDO();
-        $table = self::table();
+        $Connection = QUI::getDataBaseConnection();
+        $table = DoctrineUtils::quoteIdentifier(self::table());
 
-        if ($PDO === null) {
-            throw new QUI\Exception('Database PDO connection is not available');
-        }
+        try {
+            $result = $Connection->createQueryBuilder()
+                ->select(
+                    DoctrineUtils::quoteIdentifier('groups'),
+                    DoctrineUtils::quoteIdentifier('var'),
+                    DoctrineUtils::quoteIdentifier('package')
+                )
+                ->from($table)
+                ->groupBy(
+                    DoctrineUtils::quoteIdentifier('groups'),
+                    DoctrineUtils::quoteIdentifier('var'),
+                    DoctrineUtils::quoteIdentifier('package')
+                )
+                ->having('COUNT(*) > 1')
+                ->executeQuery()
+                ->fetchAllAssociative();
 
-        // check if dublicate entries exist
-        $Statement = $PDO->prepare(
-            'SELECT `groups`, `var`, `package`
-            FROM ' . $table . '
-            GROUP BY `groups`, `var`, `package`
-            HAVING count( * ) > 1'
-        );
+            foreach ($result as $row) {
+                $duplicates = $Connection->createQueryBuilder()
+                    ->select(DoctrineUtils::quoteIdentifier('id'))
+                    ->from($table)
+                    ->where(DoctrineUtils::quoteIdentifier('groups') . ' = :groups')
+                    ->andWhere(DoctrineUtils::quoteIdentifier('var') . ' = :var')
+                    ->andWhere(DoctrineUtils::quoteIdentifier('package') . ' = :package')
+                    ->setParameter('groups', $row['groups'])
+                    ->setParameter('var', $row['var'])
+                    ->setParameter('package', $row['package'])
+                    ->executeQuery()
+                    ->fetchAllAssociative();
 
-        $Statement->execute();
-        $result = $Statement->fetchAll(PDO::FETCH_ASSOC);
+                $duplicateIds = [];
 
-        if (empty($result)) {
-            return;
-        }
+                foreach ($duplicates as $duplicate) {
+                    $duplicateIds[] = $duplicate['id'];
+                }
 
-        $DB = QUI::getDataBase();
+                if (empty($duplicateIds)) {
+                    continue;
+                }
 
-        foreach ($result as $row) {
-            $duplicates = $DB->fetch([
-                'select' => ['id'],
-                'from' => $table,
-                'where' => [
-                    'groups' => $row['groups'],
-                    'var' => $row['var'],
-                    'package' => $row['package']
-                ]
-            ]);
-
-            $duplicateIds = [];
-
-            foreach ($duplicates as $duplicate) {
-                $duplicateIds[] = $duplicate['id'];
+                $Connection->createQueryBuilder()
+                    ->delete($table)
+                    ->where(DoctrineUtils::quoteIdentifier('groups') . ' = :groups')
+                    ->andWhere(DoctrineUtils::quoteIdentifier('var') . ' = :var')
+                    ->andWhere(DoctrineUtils::quoteIdentifier('package') . ' = :package')
+                    ->andWhere(DoctrineUtils::quoteIdentifier('id') . ' != :keepId')
+                    ->setParameter('groups', $row['groups'])
+                    ->setParameter('var', $row['var'])
+                    ->setParameter('package', $row['package'])
+                    ->setParameter('keepId', min($duplicateIds))
+                    ->executeStatement();
             }
-
-            if (empty($duplicateIds)) {
-                continue;
-            }
-
-            $DB->delete($table, [
-                'groups' => $row['groups'],
-                'var' => $row['var'],
-                'package' => $row['package'],
-                'id' => [
-                    'type' => 'NOT',
-                    'value' => min($duplicateIds)
-                ]
-            ]);
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
         }
     }
 
@@ -1214,7 +1320,7 @@ class Translator
                 continue;
             }
 
-            $result = QUI::getDataBase()->fetch([
+            $result = self::fetchDbal([
                 'select' => [
                     $lang,
                     $lang . '_edit',
@@ -1231,8 +1337,8 @@ class Translator
 
             // priority ASC Erklärung:
             // Wir müssen den kleinsten zuerst nehmen,
-            // damit die höchste Priorität zu letzt kommt und die davor überschreibt
-            // Ist verwirrend, aber somit sparen wir ein Query
+            // damit die höchste Priorität zuletzt kommt und die davor überschreibt,
+            // ist verwirrend, aber somit sparen wir ein Query
 
             foreach ($result as $entry) {
                 if (self::isEmpty($entry[$lang]) && self::isEmpty($entry[$lang . '_edit'])) {
@@ -1306,7 +1412,7 @@ class Translator
                 QUIFile::putLineToFile($ini, $ini_str);
             }
 
-            // create javascript lang files
+            // create JavaScript lang files
             $jsDir = $dir . '/bin/';
 
             QUIFile::mkdir($jsDir);
@@ -1404,7 +1510,7 @@ class Translator
 
             QUIFile::mkdir($folder);
 
-            $result = QUI::getDataBase()->fetch([
+            $result = self::fetchDbal([
                 'select' => [
                     $lang,
                     $lang . '_edit',
@@ -1423,8 +1529,8 @@ class Translator
 
             // priority ASC Erklärung:
             // Wir müssen den kleinsten zuerst nehmen,
-            // damit die höchste Priorität zu letzt kommt und die davor überschreibt
-            // Ist verwirrend, aber somit sparen wir ein Query
+            // damit die höchste Priorität zuletzt kommt und die davor überschreibt,
+            // ist verwirrend, aber somit sparen wir ein Query
 
             $javaScriptValues = [];
             $iniContent = '';
@@ -1596,7 +1702,7 @@ class Translator
             $where['package'] = $package;
         }
 
-        return QUI::getDataBase()->fetch([
+        return self::fetchDbal([
             'from' => self::table(),
             'where' => $where
         ]);
@@ -1610,6 +1716,7 @@ class Translator
      * @param bool|array<string, mixed> $search - optional array(search => '%str%', fields => '')
      *
      * @return array{data: array<int, array<string, mixed>>, page: int, count: int|string, total: int|string}
+     * @throws Exception|\QUI\Exception
      */
     public static function getData(string $groups, array $params = [], bool | array $search = false): array
     {
@@ -1630,12 +1737,10 @@ class Translator
         $page = ($page - 1) ?: 0;
         $limit = ($page * $max) . ',' . $max;
 
-        // PDO search emptyTranslations
+        // search empty translations
         if ($search && isset($search['emptyTranslations']) && $search['emptyTranslations']) {
-            $PDO = QUI::getPDO();
             $fields = [];
 
-            // search empty translations
             if (!empty($search['fields'])) {
                 $fields = array_flip($search['fields']);
             }
@@ -1647,34 +1752,50 @@ class Translator
                     continue;
                 }
 
-                $whereParts[] = "(
-                    ($field = '' OR $field IS NULL) AND
-                    ({$field}_edit = '' OR {$field}_edit IS NULL)
-                )";
+                $quotedField = DoctrineUtils::quoteIdentifier($field);
+                $quotedEditField = DoctrineUtils::quoteIdentifier($field . '_edit');
+                $whereParts[] = "(($quotedField = '' OR $quotedField IS NULL) AND ($quotedEditField = '' OR $quotedEditField IS NULL))";
             }
 
-            $where = implode(' OR ', $whereParts);
+            if (empty($whereParts)) {
+                return [
+                    'data' => [],
+                    'page' => $page + 1,
+                    'count' => 0,
+                    'total' => 0
+                ];
+            }
 
-            $querySelect = "
-                SELECT *
-                FROM $table
-                WHERE $where
-                LIMIT $limit
-            ";
+            $where = '(' . implode(' OR ', $whereParts) . ')';
+            $Connection = QUI::getDataBaseConnection();
 
-            $queryCount = "
-                SELECT COUNT(*) as count
-                FROM $table
-                WHERE $where
-            ";
+            try {
+                $result = $Connection->createQueryBuilder()
+                    ->select('*')
+                    ->from(DoctrineUtils::quoteIdentifier($table))
+                    ->where($where)
+                    ->setFirstResult($page * $max)
+                    ->setMaxResults($max)
+                    ->executeQuery()
+                    ->fetchAllAssociative();
 
-            $Statement = $PDO->prepare($querySelect);
-            $Statement->execute();
-            $result = $Statement->fetchAll(PDO::FETCH_ASSOC);
+                $count = $Connection->createQueryBuilder()
+                    ->select('COUNT(*) AS ' . DoctrineUtils::quoteIdentifier('count'))
+                    ->from(DoctrineUtils::quoteIdentifier($table))
+                    ->where($where)
+                    ->executeQuery()
+                    ->fetchAllAssociative();
+            } catch (DbalException $Exception) {
+                $Exception = self::createDatabaseException($Exception);
+                QUI\System\Log::writeException($Exception);
 
-            $Statement = $PDO->prepare($queryCount);
-            $Statement->execute();
-            $count = $Statement->fetchAll(PDO::FETCH_ASSOC);
+                return [
+                    'data' => [],
+                    'page' => 1,
+                    'count' => 0,
+                    'total' => 0
+                ];
+            }
 
             return [
                 'data' => $result,
@@ -1742,7 +1863,7 @@ class Translator
 
         // result mit limit
         try {
-            $result = QUI::getDataBase()->fetch($data);
+            $result = self::fetchDbal($data);
         } catch (QUI\Database\Exception $Exception) {
             QUI\System\Log::writeException($Exception);
 
@@ -1760,7 +1881,7 @@ class Translator
         unset($data['limit']);
 
         try {
-            $count = QUI::getDataBase()->fetch($data);
+            $count = self::fetchDbal($data);
         } catch (QUI\Database\Exception $Exception) {
             QUI\System\Log::writeException($Exception);
 
@@ -1801,7 +1922,7 @@ class Translator
         }
 
         try {
-            $result = QUI::getDataBase()->fetch([
+            $result = self::fetchDbal([
                 'from' => self::table(),
                 'where' => $where,
                 'limit' => 1
@@ -1827,7 +1948,7 @@ class Translator
     public static function getGroupList(): array
     {
         try {
-            $result = QUI::getDataBase()->fetch([
+            $result = self::fetchDbal([
                 'select' => 'groups',
                 'from' => self::table(),
                 'group' => 'groups'
@@ -1908,17 +2029,20 @@ class Translator
             $types = ['php', 'js'];
         }
 
-        // insert data
-        QUI::getDataBase()->insert(
-            self::table(),
-            [
-                'groups' => $group,
-                'var' => $var,
-                'package' => !empty($package) ? $package : '',
-                'datatype' => implode(',', $types),
-                'html' => $html ? 1 : 0
-            ]
-        );
+        try {
+            QUI::getDataBaseConnection()->insert(
+                DoctrineUtils::quoteIdentifier(self::table()),
+                self::quoteDbalArrayKeys([
+                    'groups' => $group,
+                    'var' => $var,
+                    'package' => !empty($package) ? $package : '',
+                    'datatype' => implode(',', $types),
+                    'html' => $html ? 1 : 0
+                ])
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
     }
 
     /**
@@ -1966,7 +2090,7 @@ class Translator
      * Is used directly when DEV Mode is on. This has the sense that a developer does not have to work in locale.xml
      * but can work directly in the translator. He can then export this again and gets a modified locale.xml
      *
-     * IS DIFFERENT TO edit() => edit() = Normal behaviour
+     * IS DIFFERENT TO edit() => edit() = Normal behavior
      *
      * @param string $group
      * @param string $var
@@ -2012,18 +2136,26 @@ class Translator
             $_data['priority'] = (int)$data['priority'];
         }
 
-        QUI::getDataBase()->update(self::table(), $_data, [
-            'groups' => $group,
-            'var' => $var,
-            'package' => $packageName ?: $group
-        ]);
+        try {
+            QUI::getDataBaseConnection()->update(
+                DoctrineUtils::quoteIdentifier(self::table()),
+                self::quoteDbalArrayKeys($_data),
+                self::quoteDbalArrayKeys([
+                    'groups' => $group,
+                    'var' => $var,
+                    'package' => $packageName ?: $group
+                ])
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
         QUI::getEvents()->fireEvent('quiqqerTranslatorUpdate', [$group, $var, $packageName, $data]);
     }
 
     /**
      * User Edit - Updates a translation var entry
-     *  edit() = normal behaviour
+     *  edit() = normal behavior
      *
      *  IS DIFFERENT TO update() =>
      *      update() used directly when DEV Mode is on. This has the sense that a developer does not have to work in locale.xml
@@ -2039,11 +2171,19 @@ class Translator
      */
     public static function edit(string $group, string $var, string $packageName, array $data): void
     {
-        QUI::getDataBase()->update(self::table(), self::getEditData($data), [
-            'groups' => $group,
-            'var' => $var,
-            'package' => $packageName ?: $group
-        ]);
+        try {
+            QUI::getDataBaseConnection()->update(
+                DoctrineUtils::quoteIdentifier(self::table()),
+                self::quoteDbalArrayKeys(self::getEditData($data)),
+                self::quoteDbalArrayKeys([
+                    'groups' => $group,
+                    'var' => $var,
+                    'package' => $packageName ?: $group
+                ])
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
         QUI::getEvents()->fireEvent('quiqqerTranslatorEdit', [$group, $var, $packageName, $data]);
     }
@@ -2059,9 +2199,17 @@ class Translator
      */
     public static function editById(int $id, array $data): void
     {
-        QUI::getDataBase()->update(self::table(), self::getEditData($data), [
-            'id' => $id
-        ]);
+        try {
+            QUI::getDataBaseConnection()->update(
+                DoctrineUtils::quoteIdentifier(self::table()),
+                self::quoteDbalArrayKeys(self::getEditData($data)),
+                self::quoteDbalArrayKeys([
+                    'id' => $id
+                ])
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
         QUI::getEvents()->fireEvent('quiqqerTranslatorEditById', [$id, $data]);
     }
@@ -2072,6 +2220,7 @@ class Translator
      * @param array<string, mixed> $data
      *
      * @return array<string, mixed>
+     * @throws Exception|\QUI\Exception
      */
     protected static function getEditData(array $data): array
     {
@@ -2159,13 +2308,17 @@ class Translator
             unlink(VAR_DIR . 'locale/localefiles');
         }
 
-        QUI::getDataBase()->delete(
-            self::table(),
-            [
-                'groups' => $group,
-                'var' => $var
-            ]
-        );
+        try {
+            QUI::getDataBaseConnection()->delete(
+                DoctrineUtils::quoteIdentifier(self::table()),
+                self::quoteDbalArrayKeys([
+                    'groups' => $group,
+                    'var' => $var
+                ])
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
     }
 
     /**
@@ -2181,10 +2334,14 @@ class Translator
             unlink(VAR_DIR . 'locale/localefiles');
         }
 
-        QUI::getDataBase()->delete(
-            self::table(),
-            ['id' => $id]
-        );
+        try {
+            QUI::getDataBaseConnection()->delete(
+                DoctrineUtils::quoteIdentifier(self::table()),
+                self::quoteDbalArrayKeys(['id' => $id])
+            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
     }
 
     /**
@@ -2196,13 +2353,25 @@ class Translator
      */
     public static function langs(): array
     {
-        $Table = QUI::getDataBase()->table();
+        $table = self::table();
 
-        if ($Table === null) {
-            throw new QUI\Exception('Database table manager is not available');
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
         }
 
-        $fields = $Table->getColumns(self::table());
+        try {
+            $columns = QUI::getSchemaManager()
+                ->introspectTableByUnquotedName($table)
+                ->getColumns();
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
+
+        $fields = [];
+
+        foreach ($columns as $column) {
+            $fields[] = $column->getName();
+        }
 
         $languages = [];
 
@@ -2235,13 +2404,22 @@ class Translator
      *
      * @return array<int, array<string, mixed>>
      *
-     * @throws QUI\Database\Exception
+     * @throws DbalException
+     * @throws QUI\Exception
+     * @throws \Exception
      */
     public static function getNeedles(): array
     {
-        return QUI::getDataBase()->fetch([
+        $where = [];
+
+        foreach (self::langs() as $lang) {
+            $field = DoctrineUtils::quoteIdentifier($lang);
+            $where[] = $field . ' = ' . QUI::getDataBaseConnection()->quote('');
+        }
+
+        return self::fetchDbal([
             'from' => self::table(),
-            'where' => implode(' = "" OR ', self::langs()) . ' = ""'
+            'where' => implode(' OR ', $where)
         ]);
     }
 

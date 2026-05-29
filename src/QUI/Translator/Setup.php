@@ -6,11 +6,11 @@
 
 namespace QUI\Translator;
 
+use Doctrine\DBAL\Exception as DbalException;
 use QUI;
 use QUI\Database\Exception;
 use QUI\Package\Package;
-use QUI\Database\Tables;
-use PDO;
+use QUI\Utils\Doctrine as DoctrineUtils;
 
 /**
  * Class Setup
@@ -18,6 +18,26 @@ use PDO;
  */
 class Setup
 {
+    protected static function introspectTranslatorTable(string $table): \Doctrine\DBAL\Schema\Table
+    {
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
+        }
+
+        try {
+            $SchemaManager = QUI::getSchemaManager();
+
+            // @phpstan-ignore function.alreadyNarrowedType
+            if (method_exists($SchemaManager, 'introspectTableByUnquotedName')) {
+                return $SchemaManager->introspectTableByUnquotedName($table);
+            }
+
+            return $SchemaManager->introspectTable($table);
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
+    }
+
     /**
      * @param Package $Package
      * @throws QUI\Exception
@@ -29,32 +49,36 @@ class Setup
         }
 
         $table = QUI\Translator::table();
-        $Table = self::requireTableManager();
 
-        // id field
-        $exists = $Table->getColumn($table, 'id');
-
-        if (!empty($exists)) {
-            $Table->setPrimaryKey($table, 'id');
-            self::patchForEmptyLocales();
-
-            return;
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
         }
 
-        // create id column for old translation table
-        $Table->addColumn($table, [
-            'id' => 'INT(11) DEFAULT NULL'
-        ]);
+        $quotedTable = DoctrineUtils::quoteIdentifier($table);
+        $quotedId = DoctrineUtils::quoteIdentifier('id');
+        $Connection = QUI::getDataBaseConnection();
 
-        $PDO = self::requirePDO();
+        $Table = self::introspectTranslatorTable($table);
 
-        $PDO->query(
-            "SET @count = 0;
-            UPDATE `$table` SET `$table`.`id` = @count:= @count + 1;"
-        );
+        try {
+            if (!$Table->hasColumn('id')) {
+                $Connection->executeStatement("ALTER TABLE $quotedTable ADD $quotedId INT(11) DEFAULT NULL");
+                $Connection->executeStatement('SET @count = 0');
+                $Connection->executeStatement("UPDATE $quotedTable SET $quotedId = @count:= @count + 1");
+            }
 
-        $Table->setPrimaryKey($table, 'id');
-        $Table->setAutoIncrement($table, 'id');
+            try {
+                $Connection->executeStatement("ALTER TABLE $quotedTable ADD PRIMARY KEY ($quotedId)");
+            } catch (DbalException $Exception) {
+                if (!str_contains($Exception->getMessage(), 'Multiple primary key defined')) {
+                    throw $Exception;
+                }
+            }
+
+            $Connection->executeStatement("ALTER TABLE $quotedTable MODIFY $quotedId INT(11) NOT NULL AUTO_INCREMENT");
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
         self::patchForEmptyLocales();
     }
@@ -62,57 +86,45 @@ class Setup
     /**
      * packages empty package fields
      * @throws Exception
+     * @throws QUI\Exception
      */
     protected static function patchForEmptyLocales(): void
     {
         $table = QUI\Translator::table();
 
-        // update empty package fields
-        $emptyLocales = QUI::getDataBase()->fetch([
-            'from' => $table,
-            'where' => [
-                'package' => null
-            ]
-        ]);
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
+        }
 
-        foreach ($emptyLocales as $entry) {
-            if (!isset($entry['id'])) {
-                continue;
+        $quotedTable = DoctrineUtils::quoteIdentifier($table);
+        $Connection = QUI::getDataBaseConnection();
+
+        try {
+            $emptyLocales = $Connection->createQueryBuilder()
+                ->select('*')
+                ->from($quotedTable)
+                ->where(DoctrineUtils::quoteIdentifier('package') . ' IS NULL')
+                ->executeQuery()
+                ->fetchAllAssociative();
+
+            foreach ($emptyLocales as $entry) {
+                if (!isset($entry['id'])) {
+                    continue;
+                }
+
+                $Connection->update(
+                    $quotedTable,
+                    [DoctrineUtils::quoteIdentifier('package') => $entry['groups']],
+                    [DoctrineUtils::quoteIdentifier('id') => $entry['id']]
+                );
             }
-
-            QUI::getDataBase()->update(
-                $table,
-                ['package' => $entry['groups']],
-                ['id' => $entry['id']]
-            );
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
         }
     }
 
-    /**
-     * @throws QUI\Exception
-     */
-    protected static function requireTableManager(): Tables
+    protected static function createDatabaseException(DbalException $Exception): Exception
     {
-        $Table = QUI::getDataBase()->table();
-
-        if ($Table === null) {
-            throw new QUI\Exception('Database table manager is not available');
-        }
-
-        return $Table;
-    }
-
-    /**
-     * @throws QUI\Exception
-     */
-    protected static function requirePDO(): PDO
-    {
-        $PDO = QUI::getDataBase()->getPDO();
-
-        if ($PDO === null) {
-            throw new QUI\Exception('Database PDO connection is not available');
-        }
-
-        return $PDO;
+        return new Exception($Exception->getMessage(), $Exception->getCode());
     }
 }

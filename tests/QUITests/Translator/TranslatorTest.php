@@ -78,6 +78,49 @@ PHP;
         ], $result);
     }
 
+    public function testEmptyJavaScriptLocaleFilesAreDetected(): void
+    {
+        $RefClass = new ReflectionClass(Translator::class);
+        $Method = $RefClass->getMethod('isEmptyJavaScriptLocaleFile');
+
+        $this->assertTrue($Method->invoke(
+            null,
+            <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", [])});
+JS
+        ));
+
+        $this->assertTrue($Method->invoke(
+            null,
+            <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", {})});
+JS
+        ));
+
+        $this->assertFalse($Method->invoke(
+            null,
+            <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", {"key":"value"})});
+JS
+        ));
+    }
+
+    public function testJavaScriptLocaleSetCallIsExtracted(): void
+    {
+        $RefClass = new ReflectionClass(Translator::class);
+        $Method = $RefClass->getMethod('getJavaScriptLocaleSetCall');
+
+        $this->assertSame(
+            'Locale.set("en", "vendor/package", {"key":"value"});',
+            $Method->invoke(
+                null,
+                <<<'JS'
+define('locale/vendor/package/en', ['Locale'], function(Locale){Locale.set("en", "vendor/package", {"key":"value"})});
+JS
+            )
+        );
+    }
+
     public function testLocalePublishVersionIsPersistedInPackageConfig(): void
     {
         $Package = QUI::getPackage('quiqqer/translator');
@@ -90,19 +133,19 @@ PHP;
         $oldVersion = (string)$Config->get('locale', 'publishVersion');
         $RefClass = new ReflectionClass(Translator::class);
         $versionProperty = $RefClass->getProperty('localePublishVersion');
-        $versionProperty->setValue(null);
+        $versionProperty->setValue(null, null);
 
         try {
             $version1 = Translator::getLocalePublishVersion();
             $this->assertNotSame('', $version1);
 
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
             $version2 = Translator::getLocalePublishVersion();
             $this->assertSame($version1, $version2);
         } finally {
             $Config->set('locale', 'publishVersion', $oldVersion);
             $Config->save();
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
         }
     }
 
@@ -119,21 +162,21 @@ PHP;
         $RefClass = new ReflectionClass(Translator::class);
         $versionProperty = $RefClass->getProperty('localePublishVersion');
         $refreshMethod = $RefClass->getMethod('refreshLocalePublishVersion');
-        $versionProperty->setValue(null);
+        $versionProperty->setValue(null, null);
 
         try {
             $versionBefore = Translator::getLocalePublishVersion();
             usleep(1000);
             $refreshMethod->invoke(null);
 
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
             $versionAfter = Translator::getLocalePublishVersion();
 
             $this->assertNotSame($versionBefore, $versionAfter);
         } finally {
             $Config->set('locale', 'publishVersion', $oldVersion);
             $Config->save();
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
         }
     }
 }

@@ -133,19 +133,19 @@ JS
         $oldVersion = (string)$Config->get('locale', 'publishVersion');
         $RefClass = new ReflectionClass(Translator::class);
         $versionProperty = $RefClass->getProperty('localePublishVersion');
-        $versionProperty->setValue(null);
+        $versionProperty->setValue(null, null);
 
         try {
             $version1 = Translator::getLocalePublishVersion();
             $this->assertNotSame('', $version1);
 
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
             $version2 = Translator::getLocalePublishVersion();
             $this->assertSame($version1, $version2);
         } finally {
             $Config->set('locale', 'publishVersion', $oldVersion);
             $Config->save();
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
         }
     }
 
@@ -162,21 +162,21 @@ JS
         $RefClass = new ReflectionClass(Translator::class);
         $versionProperty = $RefClass->getProperty('localePublishVersion');
         $refreshMethod = $RefClass->getMethod('refreshLocalePublishVersion');
-        $versionProperty->setValue(null);
+        $versionProperty->setValue(null, null);
 
         try {
             $versionBefore = Translator::getLocalePublishVersion();
             usleep(1000);
             $refreshMethod->invoke(null);
 
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
             $versionAfter = Translator::getLocalePublishVersion();
 
             $this->assertNotSame($versionBefore, $versionAfter);
         } finally {
             $Config->set('locale', 'publishVersion', $oldVersion);
             $Config->save();
-            $versionProperty->setValue(null);
+            $versionProperty->setValue(null, null);
         }
     }
 }

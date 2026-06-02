@@ -832,6 +832,8 @@ class Translator
                 }
 
                 $updateData['datatype'] = $var['datatype'];
+                $updateData['html'] = $var['html'];
+                $updateData['priority'] = $var['priority'];
 
                 $hasOperations = true;
                 $Connection->update($table, self::quoteDbalArrayKeys($updateData), self::quoteDbalArrayKeys([

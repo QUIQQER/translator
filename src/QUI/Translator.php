@@ -1851,6 +1851,14 @@ class Translator
             foreach ($fields as $field) {
                 if (isset($default[$field])) {
                     $where[$field] = $whereSearch;
+
+                    if (
+                        in_array($field, $db_fields, true)
+                        && strlen($field) === 2
+                        && isset($default[$field . '_edit'])
+                    ) {
+                        $where[$field . '_edit'] = $whereSearch;
+                    }
                 }
             }
 

@@ -139,6 +139,42 @@ class Translator
     }
 
     /**
+     * @param list<string> $columns
+     * @param list<array<string, mixed>> $rows
+     *
+     * @throws DbalException
+     */
+    protected static function bulkInsertDbal(string $table, array $columns, array $rows): void
+    {
+        if (empty($rows)) {
+            return;
+        }
+
+        $quotedColumns = array_map(
+            static fn (string $column): string => DoctrineUtils::quoteIdentifier($column),
+            $columns
+        );
+        $rowPlaceholders = '(' . implode(', ', array_fill(0, count($columns), '?')) . ')';
+        $placeholders = [];
+        $params = [];
+
+        foreach ($rows as $row) {
+            $placeholders[] = $rowPlaceholders;
+
+            foreach ($columns as $column) {
+                $params[] = $row[$column] ?? null;
+            }
+        }
+
+        QUI::getDataBaseConnection()->executeStatement(
+            'INSERT INTO ' . DoctrineUtils::quoteIdentifier($table)
+            . ' (' . implode(', ', $quotedColumns) . ') VALUES '
+            . implode(', ', $placeholders),
+            $params
+        );
+    }
+
+    /**
      * @param array<string, mixed> $query
      * @return array<int, array<string, mixed>>
      *
@@ -843,6 +879,12 @@ class Translator
                 unset($localeVariables[$varGroup . '/' . $varName]);
             }
 
+            $insertColumns = array_merge(
+                ['groups', 'var', 'datatype', 'html', 'priority', 'package'],
+                $languages
+            );
+            $insertRows = [];
+
             foreach ($localeVariables as $var) {
                 $containsActiveLanguage = false;
                 $insertData = [
@@ -865,8 +907,12 @@ class Translator
                     continue;
                 }
 
+                $insertRows[] = $insertData;
+            }
+
+            if (!empty($insertRows)) {
                 $hasOperations = true;
-                $Connection->insert($table, self::quoteDbalArrayKeys($insertData));
+                self::bulkInsertDbal(self::table(), $insertColumns, $insertRows);
             }
         } catch (DbalException $Exception) {
             throw new QUI\Exception(

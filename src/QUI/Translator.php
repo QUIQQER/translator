@@ -2004,15 +2004,7 @@ class Translator
             return [];
         }
 
-        if (empty($result)) {
-            return [];
-        }
-
-        if (isset($result[0]) && is_array($result[0])) {
-            return $result[0];
-        }
-
-        return $result;
+        return $result[0] ?? [];
     }
 
     /**

@@ -171,7 +171,7 @@ define('package/quiqqer/translator/bin/controls/UpdateContent', [
 
             return new Promise(function (resolve) {
                 QUIAjax.get('package_quiqqer_translator_ajax_getVarData', function (data) {
-                    self.$data = data;
+                    self.$data = typeOf(data) === 'object' ? data : {};
 
                     if (self.$data[lang + '_edit']) {
                         self.$Editor.setContent(self.$data[lang + '_edit']);

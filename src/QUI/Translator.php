@@ -227,7 +227,9 @@ class Translator
         if (isset($query['limit'])) {
             $limit = explode(',', (string)$query['limit']);
 
-            if ($limit[0] !== '') {
+            if (count($limit) === 1) {
+                $QueryBuilder->setMaxResults((int)$limit[0]);
+            } elseif ($limit[0] !== '') {
                 $QueryBuilder->setFirstResult((int)$limit[0]);
             }
 
@@ -2002,11 +2004,15 @@ class Translator
             return [];
         }
 
-        if (!isset($result[0])) {
+        if (empty($result)) {
             return [];
         }
 
-        return $result[0];
+        if (isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
     }
 
     /**

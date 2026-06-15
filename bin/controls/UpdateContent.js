@@ -270,6 +270,13 @@ define('package/quiqqer/translator/bin/controls/UpdateContent', [
                         self.getAttribute('var'),
                         self.getAttribute('package')
                     ).then(function () {
+                        return Translate.setTranslation(
+                            self.getAttribute('group'),
+                            self.getAttribute('var'),
+                            data,
+                            false
+                        );
+                    }).then(function () {
                         return Translate.refreshLocale();
 
                     }).then(function () {

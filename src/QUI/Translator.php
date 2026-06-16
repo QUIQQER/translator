@@ -7,6 +7,9 @@
 namespace QUI;
 
 use Doctrine\DBAL\Exception as DbalException;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\TableDiff;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Query\QueryBuilder;
 use DOMElement;
 use QUI;
@@ -323,22 +326,29 @@ class Translator
             );
         }
 
-        $Connection = QUI::getDataBaseConnection();
         $Table = self::introspectTranslatorTable();
-        $table = self::table();
+        $addedColumns = [];
 
-        if ($Table->hasColumn($lang)) {
+        if (!$Table->hasColumn($lang)) {
+            $addedColumns[] = new Column($lang, Type::getType('text'), [
+                'notnull' => false
+            ]);
+        }
+
+        $editLang = $lang . '_edit';
+
+        if (!$Table->hasColumn($editLang)) {
+            $addedColumns[] = new Column($editLang, Type::getType('text'), [
+                'notnull' => false
+            ]);
+        }
+
+        if (empty($addedColumns)) {
             return;
         }
 
-        $quotedTable = DoctrineUtils::quoteIdentifier($table);
-        $quotedLang = DoctrineUtils::quoteIdentifier($lang);
-        $quotedEditLang = DoctrineUtils::quoteIdentifier($lang . '_edit');
-
         try {
-            $Connection->executeStatement(
-                "ALTER TABLE $quotedTable ADD $quotedLang TEXT NULL, ADD $quotedEditLang TEXT NULL"
-            );
+            QUI::getSchemaManager()->alterTable(new TableDiff($Table, addedColumns: $addedColumns));
         } catch (DbalException $Exception) {
             throw self::createDatabaseException($Exception);
         }
@@ -726,7 +736,7 @@ class Translator
 
     /**
      * Starts a mass import of the whole locale.xml file.
-     * The locale.xml will be inserted in one query of multiple INSERT IGNORE statements.
+     * The locale.xml will be imported with DBAL update and bulk insert operations.
      *
      * Note:
      * This does not recurse into locale.xml files defined by <file> tags

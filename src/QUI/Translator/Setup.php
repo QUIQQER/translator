@@ -7,6 +7,7 @@
 namespace QUI\Translator;
 
 use Doctrine\DBAL\Exception as DbalException;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use QUI;
 use QUI\Database\Exception;
 use QUI\Package\Package;
@@ -54,33 +55,42 @@ class Setup
             throw new QUI\Exception('Database table name is not available');
         }
 
-        $quotedTable = DoctrineUtils::quoteIdentifier($table);
-        $quotedId = DoctrineUtils::quoteIdentifier('id');
-        $Connection = QUI::getDataBaseConnection();
-
         $Table = self::introspectTranslatorTable($table);
 
+        if (!$Table->hasColumn('id')) {
+            self::addMissingIdColumnOnMysql($table);
+        }
+
+        self::patchForEmptyLocales();
+    }
+
+    /**
+     * Adds the legacy id column only for old MySQL/MariaDB translator tables.
+     * PostgreSQL installations get the id column directly from database.xml.
+     *
+     * @throws Exception
+     */
+    protected static function addMissingIdColumnOnMysql(string $table): void
+    {
+        $Connection = QUI::getDataBaseConnection();
+        $Platform = $Connection->getDatabasePlatform();
+
+        if (!$Platform instanceof AbstractMySQLPlatform) {
+            return;
+        }
+
+        $quotedTable = DoctrineUtils::quoteIdentifier($table);
+        $quotedId = DoctrineUtils::quoteIdentifier('id');
+
         try {
-            if (!$Table->hasColumn('id')) {
-                $Connection->executeStatement("ALTER TABLE $quotedTable ADD $quotedId INT(11) DEFAULT NULL");
-                $Connection->executeStatement('SET @count = 0');
-                $Connection->executeStatement("UPDATE $quotedTable SET $quotedId = @count:= @count + 1");
-            }
-
-            try {
-                $Connection->executeStatement("ALTER TABLE $quotedTable ADD PRIMARY KEY ($quotedId)");
-            } catch (DbalException $Exception) {
-                if (!str_contains($Exception->getMessage(), 'Multiple primary key defined')) {
-                    throw $Exception;
-                }
-            }
-
+            $Connection->executeStatement("ALTER TABLE $quotedTable ADD $quotedId INT(11) DEFAULT NULL");
+            $Connection->executeStatement('SET @count = 0');
+            $Connection->executeStatement("UPDATE $quotedTable SET $quotedId = @count:= @count + 1");
+            $Connection->executeStatement("ALTER TABLE $quotedTable ADD PRIMARY KEY ($quotedId)");
             $Connection->executeStatement("ALTER TABLE $quotedTable MODIFY $quotedId INT(11) NOT NULL AUTO_INCREMENT");
         } catch (DbalException $Exception) {
             throw self::createDatabaseException($Exception);
         }
-
-        self::patchForEmptyLocales();
     }
 
     /**

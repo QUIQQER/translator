@@ -3,17 +3,14 @@
 
     <global>
         <table name="translate">
-            <field type="INT(11) NOT NULL PRIMARY KEY">id</field>
-            <field type="varchar(255)">groups</field>
-            <field type="varchar(255)">var</field>
-            <field type="varchar(20) DEFAULT ''">datatype</field>
-            <field type="varchar(200) DEFAULT ''">datadefine</field>
-            <field type="int(1) DEFAULT 0">html</field>
-            <field type="int(4) DEFAULT 0">priority</field>
-            <field type="varchar(255) DEFAULT NULL">package</field>
-
-            <primary>id</primary>
-            <auto_increment>id</auto_increment>
+            <field type="integer" autoincrement="true" primary="true">id</field>
+            <field type="string" length="255">groups</field>
+            <field type="string" length="255">var</field>
+            <field type="string" length="20" default="">datatype</field>
+            <field type="string" length="200" default="">datadefine</field>
+            <field type="smallint" default="0">html</field>
+            <field type="smallint" default="0">priority</field>
+            <field type="string" length="255" nullable="true" default="null">package</field>
             <index>package</index>
             <index>groups</index>
             <index>var</index>

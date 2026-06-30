@@ -4,7 +4,7 @@ namespace QUITests\Translator;
 
 use PHPUnit\Framework\TestCase;
 use QUI;
-use QUI\Utils\Doctrine as DoctrineUtils;
+use QUI\Translator\DoctrineHelper as DoctrineUtils;
 use QUI\Translator;
 use ReflectionClass;
 use Throwable;

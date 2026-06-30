@@ -11,7 +11,7 @@ use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use QUI;
 use QUI\Database\Exception;
 use QUI\Package\Package;
-use QUI\Utils\Doctrine as DoctrineUtils;
+use QUI\Translator\DoctrineHelper as DoctrineUtils;
 
 /**
  * Class Setup

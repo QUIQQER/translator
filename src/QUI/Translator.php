@@ -15,7 +15,7 @@ use DOMElement;
 use QUI;
 use QUI\Cache\Manager as CacheManager;
 use QUI\Database\Exception;
-use QUI\Utils\Doctrine as DoctrineUtils;
+use QUI\Translator\DoctrineHelper as DoctrineUtils;
 use QUI\Utils\StringHelper;
 use QUI\Utils\System\File as QUIFile;
 use QUI\Utils\Text\XML;

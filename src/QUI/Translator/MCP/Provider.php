@@ -10,7 +10,7 @@ use QUI\AI\MCP\ProviderInterface;
 use QUI\AI\MCP\Server;
 use QUI\AI\MCP\ToolHelper;
 use QUI\Permissions\Permission;
-use QUI\Utils\Doctrine as DoctrineUtils;
+use QUI\Translator\DoctrineHelper as DoctrineUtils;
 use Throwable;
 
 class Provider implements ProviderInterface

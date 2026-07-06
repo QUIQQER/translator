@@ -110,6 +110,14 @@
             <de><![CDATA[Define]]></de>
             <en><![CDATA[Define]]></en>
         </locale>
+        <locale name="permission.quiqqer.translator.mcp">
+            <de><![CDATA[Darf die Translator-MCP-Schnittstelle nutzen.]]></de>
+            <en><![CDATA[Is allowed to use the translator MCP interface.]]></en>
+        </locale>
+        <locale name="permission.quiqqer.translator.mcp.description">
+            <de><![CDATA[Erlaubt das Lesen, Suchen, Speichern und Veröffentlichen von Sprachvariablen ueber MCP-Tools.]]></de>
+            <en><![CDATA[Allows reading, searching, saving and publishing language variables via MCP tools.]]></en>
+        </locale>
     </groups>
     <groups name="quiqqer/translator" datatype="js">
         <locale name="add.window.title">

@@ -15,6 +15,8 @@ use Throwable;
 
 class Provider implements ProviderInterface
 {
+    protected const PERMISSION = 'quiqqer.translator.mcp';
+
     protected const BASE_FIELDS = [
         'id',
         'groups',
@@ -28,6 +30,10 @@ class Provider implements ProviderInterface
 
     public function register(Builder $serverBuilder): void
     {
+        if (!self::canUseMcp()) {
+            return;
+        }
+
         $serverBuilder->addTool(
             function (
                 int | null $limit = null,
@@ -464,7 +470,18 @@ class Provider implements ProviderInterface
      */
     protected static function checkPermission(): void
     {
-        Permission::checkPermission('quiqqer.admin', Server::getRequestUser());
+        Permission::checkPermission(self::PERMISSION, Server::getRequestUser());
+    }
+
+    protected static function canUseMcp(): bool
+    {
+        try {
+            self::checkPermission();
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**

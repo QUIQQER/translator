@@ -5,16 +5,7 @@ phpunit-php8.1:
   rules:
     - when: never
 
-phpunit-php8.2:
-  rules:
-    - when: never
-
 php-syntax-check-8.1:
-  stage: lint
-  rules:
-    - when: never
-
-php-syntax-check-8.2:
   stage: lint
   rules:
     - when: never

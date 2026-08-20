@@ -1256,7 +1256,7 @@ class Translator
 
         /* @var $Project QUI\Projects\Project */
         foreach ($projects as $Project) {
-            $languages = array_merge($languages, $Project->getAttribute('langs'));
+            $languages = array_merge($languages, (array)$Project->getAttribute('langs'));
         }
 
         $languages = array_unique($languages);
@@ -1455,7 +1455,7 @@ class Translator
                 $value = str_replace('"', '\"', $value);
                 $value = str_replace("\n", '{\n}', $value);
 
-                if (is_string($value) && $value !== '' && $value !== ' ') {
+                if ($value !== '' && $value !== ' ') {
                     $value = trim($value);
                 }
 
@@ -1478,7 +1478,7 @@ class Translator
                 }
 
                 $ini = $folders[$lang] . str_replace('/', '_', $entry['groups']) . '.ini.php';
-                $iniValue = is_string($value) ? $value : '';
+                $iniValue = $value;
                 $ini_str = $iniVar . '= "' . $iniValue . '"';
 
                 QUIFile::mkfile($ini);
@@ -1648,7 +1648,7 @@ class Translator
                 $value = str_replace('"', '\"', $value);
                 $value = str_replace("\n", '{\n}', $value);
 
-                if (is_string($value) && $value !== '' && $value !== ' ') {
+                if ($value !== '' && $value !== ' ') {
                     $value = trim($value);
                 }
 
@@ -1671,7 +1671,7 @@ class Translator
                 }
 
                 // content
-                $iniValue = is_string($value) ? $value : '';
+                $iniValue = $value;
                 $iniContent .= $iniVar . '= "' . $iniValue . '"' . PHP_EOL;
             }
 

@@ -86,6 +86,8 @@ class Setup
             $Connection->executeStatement("ALTER TABLE $quotedTable ADD $quotedId INT(11) DEFAULT NULL");
             $Connection->executeStatement('SET @count = 0');
             $Connection->executeStatement("UPDATE $quotedTable SET $quotedId = @count:= @count + 1");
+            // Legacy schema repair guarded by AbstractMySQLPlatform above.
+            // nosemgrep: quiqqer.forbid-mysql-specific-sql
             $Connection->executeStatement("ALTER TABLE $quotedTable ADD PRIMARY KEY ($quotedId)");
             $Connection->executeStatement("ALTER TABLE $quotedTable MODIFY $quotedId INT(11) NOT NULL AUTO_INCREMENT");
         } catch (DbalException $Exception) {

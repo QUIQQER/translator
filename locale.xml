@@ -3,11 +3,21 @@
     <groups name="quiqqer/translator" datatype="php">
         <locale name="message.translation.create.successful">
             <de><![CDATA[Sprachvariablen wurden erfolgreich veröffentlicht]]></de>
-            <en><![CDATA[]]></en>
+            <en><![CDATA[Translation variables have been published successfully.]]></en>
+            <es><![CDATA[Las variables de traducción se han publicado correctamente.]]></es>
+            <pt><![CDATA[As variáveis de tradução foram publicadas com sucesso.]]></pt>
+            <fr><![CDATA[Les variables de traduction ont bien été publiées.]]></fr>
+            <it><![CDATA[Le variabili di traduzione sono state pubblicate.]]></it>
+            <pl><![CDATA[Zmienne tłumaczeń zostały opublikowane.]]></pl>
         </locale>
         <locale name="import.success">
             <de><![CDATA[Die Sprachvariablen wurden erfolgreich importiert]]></de>
             <en><![CDATA[Translations have been imported successfully.]]></en>
+            <es><![CDATA[Las traducciones se han importado correctamente.]]></es>
+            <pt><![CDATA[As traduções foram importadas com sucesso.]]></pt>
+            <fr><![CDATA[Les traductions ont bien été importées.]]></fr>
+            <it><![CDATA[Le traduzioni sono state importate.]]></it>
+            <pl><![CDATA[Tłumaczenia zostały zaimportowane.]]></pl>
         </locale>
         <locale name="exception.import.wrong.format">
             <de><![CDATA[
@@ -16,200 +26,432 @@
             <en><![CDATA[
             The file [file] has a wrong format. Please only use files created via the export function of the Translator.
             ]]></en>
+            <es><![CDATA[El formato del archivo [file] no es válido. Utiliza únicamente archivos creados con la función de exportación de traducciones.]]></es>
+            <pt><![CDATA[O formato do ficheiro [file] é inválido. Utilize apenas ficheiros criados com a função de exportação de traduções.]]></pt>
+            <fr><![CDATA[Le format du fichier [file] est incorrect. Utilisez uniquement des fichiers créés avec la fonction d’exportation des traductions.]]></fr>
+            <it><![CDATA[Il formato del file [file] non è valido. Utilizza solo file creati con la funzione di esportazione delle traduzioni.]]></it>
+            <pl><![CDATA[Plik [file] ma nieprawidłowy format. Używaj wyłącznie plików utworzonych za pomocą funkcji eksportu tłumaczeń.]]></pl>
         </locale>
         <locale name="exception.file.could.not.read">
             <de><![CDATA[Datei konnte nicht gelesen werden]]></de>
             <en><![CDATA[The file could not be read.]]></en>
+            <es><![CDATA[No se ha podido leer el archivo.]]></es>
+            <pt><![CDATA[Não foi possível ler o ficheiro.]]></pt>
+            <fr><![CDATA[Impossible de lire le fichier.]]></fr>
+            <it><![CDATA[Impossibile leggere il file.]]></it>
+            <pl><![CDATA[Nie udało się odczytać pliku.]]></pl>
         </locale>
         <locale name="exception.translation.not.found.update">
             <de><![CDATA[Übersetzung wurde nicht gefunden und konnte nicht aktualisiert werden]]></de>
             <en><![CDATA[Translation was not found and could not be updated.]]></en>
+            <es><![CDATA[No se ha encontrado la traducción y no se ha podido actualizar.]]></es>
+            <pt><![CDATA[A tradução não foi encontrada e não pôde ser atualizada.]]></pt>
+            <fr><![CDATA[La traduction est introuvable et n’a pas pu être mise à jour.]]></fr>
+            <it><![CDATA[La traduzione non è stata trovata e non è stato possibile aggiornarla.]]></it>
+            <pl><![CDATA[Nie znaleziono tłumaczenia i nie udało się go zaktualizować.]]></pl>
         </locale>
         <locale name="exception.translation.var.not.found.update">
             <de><![CDATA[Die Sprachvariable '[var]' in der Gruppe '[group]' wurde nicht gefunden und konnte nicht aktualisiert werden.]]></de>
             <en><![CDATA[The locale variable '[var]' in group '[group]' was not found and could not be updated.]]></en>
+            <es><![CDATA[No se ha encontrado la variable de traducción «[var]» en el grupo «[group]» y no se ha podido actualizar.]]></es>
+            <pt><![CDATA[A variável de tradução «[var]» do grupo «[group]» não foi encontrada e não pôde ser atualizada.]]></pt>
+            <fr><![CDATA[La variable de traduction « [var] » du groupe « [group] » est introuvable et n’a pas pu être mise à jour.]]></fr>
+            <it><![CDATA[La variabile di traduzione «[var]» nel gruppo «[group]» non è stata trovata e non è stato possibile aggiornarla.]]></it>
+            <pl><![CDATA[Nie znaleziono zmiennej tłumaczenia „[var]” w grupie „[group]” i nie udało się jej zaktualizować.]]></pl>
         </locale>
         <locale name="exception.lang.shortcut.not.allowed">
             <de><![CDATA[Sprachkürzel nicht erlaubt]]></de>
-            <en><![CDATA[Lang shortcut not allowed]]></en>
+            <en><![CDATA[Language code not allowed.]]></en>
+            <es><![CDATA[Código de idioma no permitido.]]></es>
+            <pt><![CDATA[Código de idioma não permitido.]]></pt>
+            <fr><![CDATA[Code de langue non autorisé.]]></fr>
+            <it><![CDATA[Codice lingua non consentito.]]></it>
+            <pl><![CDATA[Niedozwolony kod języka.]]></pl>
         </locale>
         <locale name="exception.lang.file.not.exist">
             <de><![CDATA[Übersetzungsdatei existiert nicht]]></de>
             <en><![CDATA[Translation file does not exist.]]></en>
+            <es><![CDATA[El archivo de traducción no existe.]]></es>
+            <pt><![CDATA[O ficheiro de tradução não existe.]]></pt>
+            <fr><![CDATA[Le fichier de traduction n’existe pas.]]></fr>
+            <it><![CDATA[Il file di traduzione non esiste.]]></it>
+            <pl><![CDATA[Plik tłumaczenia nie istnieje.]]></pl>
         </locale>
         <locale name="exception.empty.var.group">
             <de><![CDATA[Sprachvariable konnte nicht angelegt werden. Gruppe oder Variablen-Name ist leer]]></de>
             <en><![CDATA[Translation variable could not be created. Group or variable name is empty.]]></en>
+            <es><![CDATA[No se ha podido crear la variable de traducción. El nombre del grupo o de la variable está vacío.]]></es>
+            <pt><![CDATA[Não foi possível criar a variável de tradução. O nome do grupo ou da variável está vazio.]]></pt>
+            <fr><![CDATA[Impossible de créer la variable de traduction. Le nom du groupe ou de la variable est vide.]]></fr>
+            <it><![CDATA[Impossibile creare la variabile di traduzione. Il nome del gruppo o della variabile è vuoto.]]></it>
+            <pl><![CDATA[Nie udało się utworzyć zmiennej tłumaczenia. Nazwa grupy lub zmiennej jest pusta.]]></pl>
         </locale>
         <locale name="exception.var.exists" html="true">
             <de><![CDATA[
             Die Sprachvariable <b>[[group]] [var]</b> konnte nicht angelegt werden, diese Variable existiert bereits
             ]]></de>
-            <en><![CDATA[
-            The Translation variable <b>[[group]] [var]</b> could not be created because it already exists.
-            ]]></en>
+            <en><![CDATA[The translation variable <b>[[group]] [var]</b> could not be created because it already exists.]]></en>
+            <es><![CDATA[No se ha podido crear la variable de traducción <b>[[group]] [var]</b> porque ya existe.]]></es>
+            <pt><![CDATA[Não foi possível criar a variável de tradução <b>[[group]] [var]</b> porque já existe.]]></pt>
+            <fr><![CDATA[Impossible de créer la variable de traduction <b>[[group]] [var]</b>, car elle existe déjà.]]></fr>
+            <it><![CDATA[Impossibile creare la variabile di traduzione <b>[[group]] [var]</b> perché esiste già.]]></it>
+            <pl><![CDATA[Nie udało się utworzyć zmiennej tłumaczenia <b>[[group]] [var]</b>, ponieważ już istnieje.]]></pl>
         </locale>
         <locale name="exception.group.exists">
             <de><![CDATA[Diese Gruppe existiert bereits]]></de>
             <en><![CDATA[This group already exists.]]></en>
+            <es><![CDATA[Este grupo ya existe.]]></es>
+            <pt><![CDATA[Este grupo já existe.]]></pt>
+            <fr><![CDATA[Ce groupe existe déjà.]]></fr>
+            <it><![CDATA[Questo gruppo esiste già.]]></it>
+            <pl><![CDATA[Ta grupa już istnieje.]]></pl>
         </locale>
         <locale name="exception.batch.query.error">
-            <de><![CDATA[Während des MassenImports der Sprachvariablen ist ein SQL-Fehler aufgetreten.]]></de>
-            <en><![CDATA[An SQL error occured during batch import of the localization variables.]]></en>
+            <de><![CDATA[Beim Massenimport der Sprachvariablen ist ein SQL-Fehler aufgetreten.]]></de>
+            <en><![CDATA[An SQL error occurred during batch import of the translation variables.]]></en>
+            <es><![CDATA[Se ha producido un error SQL durante la importación masiva de variables de traducción.]]></es>
+            <pt><![CDATA[Ocorreu um erro SQL durante a importação em lote das variáveis de tradução.]]></pt>
+            <fr><![CDATA[Une erreur SQL s’est produite lors de l’importation en masse des variables de traduction.]]></fr>
+            <it><![CDATA[Si è verificato un errore SQL durante l’importazione in blocco delle variabili di traduzione.]]></it>
+            <pl><![CDATA[Wystąpił błąd SQL podczas zbiorczego importu zmiennych tłumaczeń.]]></pl>
         </locale>
 
         <locale name="message.var.add.successful">
             <de><![CDATA[Variable [groups] [var] wurde erfolgreich hinzugefügt]]></de>
             <en><![CDATA[Variable [groups] [var] has been added successfully.]]></en>
+            <es><![CDATA[La variable [groups] [var] se ha añadido correctamente.]]></es>
+            <pt><![CDATA[A variável [groups] [var] foi adicionada com sucesso.]]></pt>
+            <fr><![CDATA[La variable [groups] [var] a bien été ajoutée.]]></fr>
+            <it><![CDATA[La variabile [groups] [var] è stata aggiunta.]]></it>
+            <pl><![CDATA[Dodano zmienną [groups] [var].]]></pl>
         </locale>
         <locale name="message.translation.delete.successfully">
             <de><![CDATA[Variable [groups] [var] wurde erfolgreich gelöscht]]></de>
             <en><![CDATA[Variable [groups] [var] has been deleted successfully.]]></en>
+            <es><![CDATA[La variable [groups] [var] se ha eliminado correctamente.]]></es>
+            <pt><![CDATA[A variável [groups] [var] foi eliminada com sucesso.]]></pt>
+            <fr><![CDATA[La variable [groups] [var] a bien été supprimée.]]></fr>
+            <it><![CDATA[La variabile [groups] [var] è stata eliminata.]]></it>
+            <pl><![CDATA[Usunięto zmienną [groups] [var].]]></pl>
         </locale>
         <locale name="message.translation.delete.id.successfully">
             <de><![CDATA[Variable #[id] wurde erfolgreich gelöscht]]></de>
             <en><![CDATA[Variable #[id] has been deleted successfully.]]></en>
+            <es><![CDATA[La variable #[id] se ha eliminado correctamente.]]></es>
+            <pt><![CDATA[A variável #[id] foi eliminada com sucesso.]]></pt>
+            <fr><![CDATA[La variable #[id] a bien été supprimée.]]></fr>
+            <it><![CDATA[La variabile #[id] è stata eliminata.]]></it>
+            <pl><![CDATA[Usunięto zmienną #[id].]]></pl>
         </locale>
         <locale name="message.translation.update.successful">
             <de><![CDATA[Übersetzung wurde erfolgreich gespeichert]]></de>
             <en><![CDATA[Translation saved.]]></en>
+            <es><![CDATA[La traducción se ha guardado.]]></es>
+            <pt><![CDATA[A tradução foi guardada.]]></pt>
+            <fr><![CDATA[La traduction a été enregistrée.]]></fr>
+            <it><![CDATA[La traduzione è stata salvata.]]></it>
+            <pl><![CDATA[Tłumaczenie zostało zapisane.]]></pl>
         </locale>
         <locale name="template.search.to.title">
             <de><![CDATA[Suche nach:]]></de>
             <en><![CDATA[Search for:]]></en>
+            <es><![CDATA[Buscar:]]></es>
+            <pt><![CDATA[Pesquisar:]]></pt>
+            <fr><![CDATA[Rechercher :]]></fr>
+            <it><![CDATA[Cerca:]]></it>
+            <pl><![CDATA[Szukaj:]]></pl>
         </locale>
         <locale name="template.search.field.text ">
             <de><![CDATA[Suche]]></de>
             <en><![CDATA[Search]]></en>
+            <es><![CDATA[Buscar]]></es>
+            <pt><![CDATA[Pesquisar]]></pt>
+            <fr><![CDATA[Rechercher]]></fr>
+            <it><![CDATA[Cerca]]></it>
+            <pl><![CDATA[Szukaj]]></pl>
         </locale>
         <locale name="template.search.emptyTranslations.text">
             <de><![CDATA[Nicht übersetzte Variablen suchen]]></de>
-            <en><![CDATA[Search no translated variables.]]></en>
+            <en><![CDATA[Search for untranslated variables]]></en>
+            <es><![CDATA[Buscar variables sin traducir]]></es>
+            <pt><![CDATA[Pesquisar variáveis por traduzir]]></pt>
+            <fr><![CDATA[Rechercher les variables non traduites]]></fr>
+            <it><![CDATA[Cerca variabili non tradotte]]></it>
+            <pl><![CDATA[Szukaj nieprzetłumaczonych zmiennych]]></pl>
         </locale>
         <locale name="template.search.in.title">
             <de><![CDATA[Suche in:]]></de>
             <en><![CDATA[Search in:]]></en>
+            <es><![CDATA[Buscar en:]]></es>
+            <pt><![CDATA[Pesquisar em:]]></pt>
+            <fr><![CDATA[Rechercher dans :]]></fr>
+            <it><![CDATA[Cerca in:]]></it>
+            <pl><![CDATA[Szukaj w:]]></pl>
         </locale>
         <locale name="template.search.lang.title">
             <de><![CDATA[Sprachen:]]></de>
             <en><![CDATA[Languages:]]></en>
+            <es><![CDATA[Idiomas:]]></es>
+            <pt><![CDATA[Idiomas:]]></pt>
+            <fr><![CDATA[Langues :]]></fr>
+            <it><![CDATA[Lingue:]]></it>
+            <pl><![CDATA[Języki:]]></pl>
         </locale>
         <locale name="template.search.groups">
             <de><![CDATA[Gruppen]]></de>
             <en><![CDATA[Groups]]></en>
+            <es><![CDATA[Grupos]]></es>
+            <pt><![CDATA[Grupos]]></pt>
+            <fr><![CDATA[Groupes]]></fr>
+            <it><![CDATA[Gruppi]]></it>
+            <pl><![CDATA[Grupy]]></pl>
         </locale>
         <locale name="template.search.vars">
             <de><![CDATA[Variablen]]></de>
             <en><![CDATA[Variables]]></en>
+            <es><![CDATA[Variables]]></es>
+            <pt><![CDATA[Variáveis]]></pt>
+            <fr><![CDATA[Variables]]></fr>
+            <it><![CDATA[Variabili]]></it>
+            <pl><![CDATA[Zmienne]]></pl>
         </locale>
         <locale name="template.search.datatype">
             <de><![CDATA[Datentyp]]></de>
-            <en><![CDATA[Data-Type]]></en>
+            <en><![CDATA[Data type]]></en>
+            <es><![CDATA[Tipo de datos]]></es>
+            <pt><![CDATA[Tipo de dados]]></pt>
+            <fr><![CDATA[Type de données]]></fr>
+            <it><![CDATA[Tipo di dati]]></it>
+            <pl><![CDATA[Typ danych]]></pl>
         </locale>
         <locale name="template.search.datadefine">
             <de><![CDATA[Define]]></de>
             <en><![CDATA[Define]]></en>
+            <es><![CDATA[Define]]></es>
+            <pt><![CDATA[Define]]></pt>
+            <fr><![CDATA[Define]]></fr>
+            <it><![CDATA[Define]]></it>
+            <pl><![CDATA[Define]]></pl>
         </locale>
         <locale name="permission.quiqqer.translator.mcp">
             <de><![CDATA[Darf die Translator-MCP-Schnittstelle nutzen.]]></de>
             <en><![CDATA[Is allowed to use the translator MCP interface.]]></en>
+            <es><![CDATA[Puede utilizar la interfaz MCP de Translator.]]></es>
+            <pt><![CDATA[Pode utilizar a interface MCP do Translator.]]></pt>
+            <fr><![CDATA[Peut utiliser l’interface MCP de Translator.]]></fr>
+            <it><![CDATA[Può utilizzare l’interfaccia MCP di Translator.]]></it>
+            <pl><![CDATA[Może korzystać z interfejsu MCP modułu Translator.]]></pl>
         </locale>
         <locale name="permission.quiqqer.translator.mcp.description">
-            <de><![CDATA[Erlaubt das Lesen, Suchen, Speichern und Veröffentlichen von Sprachvariablen ueber MCP-Tools.]]></de>
+            <de><![CDATA[Erlaubt das Lesen, Suchen, Speichern und Veröffentlichen von Sprachvariablen über MCP-Tools.]]></de>
             <en><![CDATA[Allows reading, searching, saving and publishing language variables via MCP tools.]]></en>
+            <es><![CDATA[Permite leer, buscar, guardar y publicar variables de traducción mediante herramientas MCP.]]></es>
+            <pt><![CDATA[Permite ler, pesquisar, guardar e publicar variáveis de tradução através de ferramentas MCP.]]></pt>
+            <fr><![CDATA[Permet de lire, rechercher, enregistrer et publier des variables de traduction via les outils MCP.]]></fr>
+            <it><![CDATA[Consente di leggere, cercare, salvare e pubblicare variabili di traduzione tramite gli strumenti MCP.]]></it>
+            <pl><![CDATA[Umożliwia odczytywanie, wyszukiwanie, zapisywanie i publikowanie zmiennych tłumaczeń za pomocą narzędzi MCP.]]></pl>
         </locale>
     </groups>
     <groups name="quiqqer/translator" datatype="js">
         <locale name="add.window.title">
-            <de><![CDATA[Variable hinzufügen:[group]]]></de>
+            <de><![CDATA[Variable hinzufügen: [group]]]></de>
             <en><![CDATA[Add Variable: [group]]]></en>
+            <es><![CDATA[Añadir variable: [group]]]></es>
+            <pt><![CDATA[Adicionar variável: [group]]]></pt>
+            <fr><![CDATA[Ajouter une variable : [group]]]></fr>
+            <it><![CDATA[Aggiungi variabile: [group]]]></it>
+            <pl><![CDATA[Dodaj zmienną: [group]]]></pl>
         </locale>
         <locale name="add.window.text">
             <de><![CDATA[<p>Fügen Sie der Gruppe <b>[group]</b> eine neue Variable hinzu.</p>
 Klicken Sie auf OK, um die neue Sprachvariable anzulegen.]]></de>
-            <en><![CDATA[<p>Add a new translation variable.</p><br/>
-                <p>If you also want to add a new group, just edit the main or sub group.</p>]]></en>
+            <en><![CDATA[<p>Add a new variable to the group <b>[group]</b>.</p>Click OK to create the translation variable.]]></en>
+            <es><![CDATA[<p>Añade una nueva variable al grupo <b>[group]</b>.</p>Haz clic en OK para crear la variable de traducción.]]></es>
+            <pt><![CDATA[<p>Adicione uma nova variável ao grupo <b>[group]</b>.</p>Clique em OK para criar a variável de tradução.]]></pt>
+            <fr><![CDATA[<p>Ajoutez une nouvelle variable au groupe <b>[group]</b>.</p>Cliquez sur OK pour créer la variable de traduction.]]></fr>
+            <it><![CDATA[<p>Aggiungi una nuova variabile al gruppo <b>[group]</b>.</p>Clicca su OK per creare la variabile di traduzione.]]></it>
+            <pl><![CDATA[<p>Dodaj nową zmienną do grupy <b>[group]</b>.</p>Kliknij OK, aby utworzyć zmienną tłumaczenia.]]></pl>
         </locale>
         <locale name="add.window.group" html="true">
             <de><![CDATA[Gruppe]]></de>
             <en><![CDATA[Group]]></en>
+            <es><![CDATA[Grupo]]></es>
+            <pt><![CDATA[Grupo]]></pt>
+            <fr><![CDATA[Groupe]]></fr>
+            <it><![CDATA[Gruppo]]></it>
+            <pl><![CDATA[Grupa]]></pl>
         </locale>
         <locale name="add.window.maingroup.placeholder">
             <de><![CDATA[Hauptgruppe]]></de>
             <en><![CDATA[Main group]]></en>
+            <es><![CDATA[Grupo principal]]></es>
+            <pt><![CDATA[Grupo principal]]></pt>
+            <fr><![CDATA[Groupe principal]]></fr>
+            <it><![CDATA[Gruppo principale]]></it>
+            <pl><![CDATA[Grupa główna]]></pl>
         </locale>
         <locale name="add.window.maingroup.label">
             <de><![CDATA[Hauptgruppe]]></de>
             <en><![CDATA[Main group]]></en>
+            <es><![CDATA[Grupo principal]]></es>
+            <pt><![CDATA[Grupo principal]]></pt>
+            <fr><![CDATA[Groupe principal]]></fr>
+            <it><![CDATA[Gruppo principale]]></it>
+            <pl><![CDATA[Grupa główna]]></pl>
         </locale>
         <locale name="add.window.subgroup.placeholder">
             <de><![CDATA[Untergruppe]]></de>
-            <en><![CDATA[Sub group]]></en>
+            <en><![CDATA[Subgroup]]></en>
+            <es><![CDATA[Subgrupo]]></es>
+            <pt><![CDATA[Subgrupo]]></pt>
+            <fr><![CDATA[Sous-groupe]]></fr>
+            <it><![CDATA[Sottogruppo]]></it>
+            <pl><![CDATA[Podgrupa]]></pl>
         </locale>
         <locale name="add.window.subgroup.label">
             <de><![CDATA[Untergruppe]]></de>
-            <en><![CDATA[Sub group]]></en>
+            <en><![CDATA[Subgroup]]></en>
+            <es><![CDATA[Subgrupo]]></es>
+            <pt><![CDATA[Subgrupo]]></pt>
+            <fr><![CDATA[Sous-groupe]]></fr>
+            <it><![CDATA[Sottogruppo]]></it>
+            <pl><![CDATA[Podgrupa]]></pl>
         </locale>
         <locale name="add.window.variable.placeholder">
             <de><![CDATA[Variable]]></de>
             <en><![CDATA[Variable]]></en>
+            <es><![CDATA[Variable]]></es>
+            <pt><![CDATA[Variável]]></pt>
+            <fr><![CDATA[Variable]]></fr>
+            <it><![CDATA[Variabile]]></it>
+            <pl><![CDATA[Zmienna]]></pl>
         </locale>
         <locale name="add.window.variable.label">
             <de><![CDATA[Übersetzungsvariable]]></de>
             <en><![CDATA[Translation variable]]></en>
+            <es><![CDATA[Variable de traducción]]></es>
+            <pt><![CDATA[Variável de tradução]]></pt>
+            <fr><![CDATA[Variable de traduction]]></fr>
+            <it><![CDATA[Variabile di traduzione]]></it>
+            <pl><![CDATA[Zmienna tłumaczenia]]></pl>
         </locale>
         <locale name="add.window.js.label">
             <de><![CDATA[JavaScript]]></de>
             <en><![CDATA[JavaScript]]></en>
+            <es><![CDATA[JavaScript]]></es>
+            <pt><![CDATA[JavaScript]]></pt>
+            <fr><![CDATA[JavaScript]]></fr>
+            <it><![CDATA[JavaScript]]></it>
+            <pl><![CDATA[JavaScript]]></pl>
         </locale>
         <locale name="add.window.js.desc">
             <de><![CDATA[Für JavaScript verfügbar machen.]]></de>
             <en><![CDATA[Make available to JavaScript.]]></en>
+            <es><![CDATA[Permitir su uso en JavaScript.]]></es>
+            <pt><![CDATA[Disponibilizar para JavaScript.]]></pt>
+            <fr><![CDATA[Rendre disponible pour JavaScript.]]></fr>
+            <it><![CDATA[Rendi disponibile per JavaScript.]]></it>
+            <pl><![CDATA[Udostępnij w JavaScript.]]></pl>
         </locale>
         <locale name="add.window.php.label">
             <de><![CDATA[PHP]]></de>
             <en><![CDATA[PHP]]></en>
+            <es><![CDATA[PHP]]></es>
+            <pt><![CDATA[PHP]]></pt>
+            <fr><![CDATA[PHP]]></fr>
+            <it><![CDATA[PHP]]></it>
+            <pl><![CDATA[PHP]]></pl>
         </locale>
         <locale name="add.window.php.desc">
             <de><![CDATA[Für PHP verfügbar machen.]]></de>
             <en><![CDATA[Make available to PHP.]]></en>
+            <es><![CDATA[Permitir su uso en PHP.]]></es>
+            <pt><![CDATA[Disponibilizar para PHP.]]></pt>
+            <fr><![CDATA[Rendre disponible pour PHP.]]></fr>
+            <it><![CDATA[Rendi disponibile per PHP.]]></it>
+            <pl><![CDATA[Udostępnij w PHP.]]></pl>
         </locale>
         <locale name="add.window.html.label">
             <de><![CDATA[HTML]]></de>
             <en><![CDATA[HTML]]></en>
+            <es><![CDATA[HTML]]></es>
+            <pt><![CDATA[HTML]]></pt>
+            <fr><![CDATA[HTML]]></fr>
+            <it><![CDATA[HTML]]></it>
+            <pl><![CDATA[HTML]]></pl>
         </locale>
         <locale name="add.window.html.desc">
             <de><![CDATA[HTML ist in der Variable erlaubt.]]></de>
             <en><![CDATA[HTML is allowed in the variable.]]></en>
+            <es><![CDATA[Se permite HTML en la variable.]]></es>
+            <pt><![CDATA[É permitido utilizar HTML na variável.]]></pt>
+            <fr><![CDATA[Le HTML est autorisé dans la variable.]]></fr>
+            <it><![CDATA[È consentito utilizzare HTML nella variabile.]]></it>
+            <pl><![CDATA[W zmiennej dozwolony jest kod HTML.]]></pl>
         </locale>
 
         <locale name="add.window.btn.close">
             <de><![CDATA[schließen]]></de>
             <en><![CDATA[close]]></en>
+            <es><![CDATA[Cerrar]]></es>
+            <pt><![CDATA[Fechar]]></pt>
+            <fr><![CDATA[Fermer]]></fr>
+            <it><![CDATA[Chiudi]]></it>
+            <pl><![CDATA[Zamknij]]></pl>
         </locale>
         <locale name="add.window.btn.add">
             <de><![CDATA[hinzufügen]]></de>
             <en><![CDATA[add]]></en>
+            <es><![CDATA[Añadir]]></es>
+            <pt><![CDATA[Adicionar]]></pt>
+            <fr><![CDATA[Ajouter]]></fr>
+            <it><![CDATA[Aggiungi]]></it>
+            <pl><![CDATA[Dodaj]]></pl>
         </locale>
         <locale name="add.window.edit.btn.text">
             <de><![CDATA[Gruppe editieren]]></de>
             <en><![CDATA[Edit group]]></en>
+            <es><![CDATA[Editar grupo]]></es>
+            <pt><![CDATA[Editar grupo]]></pt>
+            <fr><![CDATA[Modifier le groupe]]></fr>
+            <it><![CDATA[Modifica gruppo]]></it>
+            <pl><![CDATA[Edytuj grupę]]></pl>
         </locale>
         <locale name="del.window.text">
             <de><![CDATA[Möchten Sie folgende Elemente wirklich löschen?]]></de>
             <en><![CDATA[Do you really want to delete the following elements:]]></en>
+            <es><![CDATA[¿Seguro que quieres eliminar los siguientes elementos?]]></es>
+            <pt><![CDATA[Tem a certeza de que pretende eliminar os seguintes elementos?]]></pt>
+            <fr><![CDATA[Voulez-vous vraiment supprimer les éléments suivants ?]]></fr>
+            <it><![CDATA[Vuoi davvero eliminare i seguenti elementi?]]></it>
+            <pl><![CDATA[Czy na pewno chcesz usunąć następujące elementy?]]></pl>
         </locale>
         <locale name="del.window.title">
             <de><![CDATA[Übersetzungen löschen]]></de>
             <en><![CDATA[Delete translations]]></en>
+            <es><![CDATA[Eliminar traducciones]]></es>
+            <pt><![CDATA[Eliminar traduções]]></pt>
+            <fr><![CDATA[Supprimer les traductions]]></fr>
+            <it><![CDATA[Elimina traduzioni]]></it>
+            <pl><![CDATA[Usuń tłumaczenia]]></pl>
         </locale>
         <locale name="del.window.text.information">
-            <de><![CDATA[Die Elemente sind unwiderruflich gelöscht]]></de>
-            <en><![CDATA[The elements have been removed.]]></en>
+            <de><![CDATA[Die Elemente werden unwiderruflich gelöscht.]]></de>
+            <en><![CDATA[The items will be permanently deleted.]]></en>
+            <es><![CDATA[Los elementos se eliminarán de forma permanente.]]></es>
+            <pt><![CDATA[Os elementos serão eliminados permanentemente.]]></pt>
+            <fr><![CDATA[Les éléments seront supprimés définitivement.]]></fr>
+            <it><![CDATA[Gli elementi verranno eliminati definitivamente.]]></it>
+            <pl><![CDATA[Elementy zostaną trwale usunięte.]]></pl>
         </locale>
         <locale name="import.window.title">
             <de><![CDATA[Import von Übersetzungsdateien]]></de>
             <en><![CDATA[Import of translations]]></en>
+            <es><![CDATA[Importar archivos de traducción]]></es>
+            <pt><![CDATA[Importar ficheiros de tradução]]></pt>
+            <fr><![CDATA[Importer des fichiers de traduction]]></fr>
+            <it><![CDATA[Importa file di traduzione]]></it>
+            <pl><![CDATA[Importuj pliki tłumaczeń]]></pl>
         </locale>
         <locale name="import.window.description" html="true">
             <de><![CDATA[
@@ -218,161 +460,356 @@ Klicken Sie auf OK, um die neue Sprachvariable anzulegen.]]></de>
             <en><![CDATA[<p>Import translation files fast and easily.</p>
                 <p>Upload a file via drag and drop or via upload form.</p>
                 <p>The file will be scanned for translation variables and imported into the system.</p>]]></en>
+            <es><![CDATA[<p>Sube un archivo arrastrándolo y soltándolo o mediante el formulario de carga.</p><p>Se buscarán variables de traducción en el archivo y se importarán al sistema.</p>]]></es>
+            <pt><![CDATA[<p>Arraste e largue um ficheiro ou utilize o formulário de carregamento.</p><p>O ficheiro será analisado para identificar variáveis de tradução e importá-las para o sistema.</p>]]></pt>
+            <fr><![CDATA[<p>Importez un fichier par glisser-déposer ou à l’aide du formulaire d’envoi.</p><p>Le fichier sera analysé pour identifier les variables de traduction et les importer dans le système.</p>]]></fr>
+            <it><![CDATA[<p>Carica un file trascinandolo oppure utilizzando il modulo di caricamento.</p><p>Il file verrà analizzato per individuare le variabili di traduzione e importarle nel sistema.</p>]]></it>
+            <pl><![CDATA[<p>Prześlij plik metodą przeciągnij i upuść lub za pomocą formularza przesyłania.</p><p>System wyszuka w pliku zmienne tłumaczeń i je zaimportuje.</p>]]></pl>
         </locale>
         <locale name="import.window.overwrite.label">
             <de><![CDATA[Standard-Übersetzungen überschreiben]]></de>
             <en><![CDATA[Overwrite default translations]]></en>
+            <es><![CDATA[Sobrescribir las traducciones predeterminadas]]></es>
+            <pt><![CDATA[Substituir as traduções predefinidas]]></pt>
+            <fr><![CDATA[Écraser les traductions par défaut]]></fr>
+            <it><![CDATA[Sovrascrivi le traduzioni predefinite]]></it>
+            <pl><![CDATA[Nadpisz tłumaczenia domyślne]]></pl>
         </locale>
         <locale name="import.window.btn.upload">
             <de><![CDATA[Datei importieren]]></de>
             <en><![CDATA[Import file]]></en>
+            <es><![CDATA[Importar archivo]]></es>
+            <pt><![CDATA[Importar ficheiro]]></pt>
+            <fr><![CDATA[Importer le fichier]]></fr>
+            <it><![CDATA[Importa file]]></it>
+            <pl><![CDATA[Importuj plik]]></pl>
         </locale>
         <locale name="panel.title">
             <de><![CDATA[Sprachvariablen]]></de>
             <en><![CDATA[Translations]]></en>
+            <es><![CDATA[Traducciones]]></es>
+            <pt><![CDATA[Traduções]]></pt>
+            <fr><![CDATA[Traductions]]></fr>
+            <it><![CDATA[Traduzioni]]></it>
+            <pl><![CDATA[Tłumaczenia]]></pl>
         </locale>
         <locale name="export.window.title">
             <de><![CDATA[Übersetzungen exportieren]]></de>
             <en><![CDATA[Export translations]]></en>
+            <es><![CDATA[Exportar traducciones]]></es>
+            <pt><![CDATA[Exportar traduções]]></pt>
+            <fr><![CDATA[Exporter les traductions]]></fr>
+            <it><![CDATA[Esporta traduzioni]]></it>
+            <pl><![CDATA[Eksportuj tłumaczenia]]></pl>
         </locale>
         <locale name="export.window.group">
             <de><![CDATA[Gruppenwahl]]></de>
             <en><![CDATA[Group choice]]></en>
+            <es><![CDATA[Selección de grupos]]></es>
+            <pt><![CDATA[Seleção de grupos]]></pt>
+            <fr><![CDATA[Sélection des groupes]]></fr>
+            <it><![CDATA[Selezione dei gruppi]]></it>
+            <pl><![CDATA[Wybór grup]]></pl>
         </locale>
         <locale name="export.window.group.current.label">
             <de><![CDATA[Aktuelle Gruppe ([group])]]></de>
             <en><![CDATA[Current group ([group])]]></en>
+            <es><![CDATA[Grupo actual ([group])]]></es>
+            <pt><![CDATA[Grupo atual ([group])]]></pt>
+            <fr><![CDATA[Groupe actuel ([group])]]></fr>
+            <it><![CDATA[Gruppo attuale ([group])]]></it>
+            <pl><![CDATA[Bieżąca grupa ([group])]]></pl>
         </locale>
         <locale name="export.window.group.all.label">
             <de><![CDATA[Alle Gruppen (Anzahl: [count])]]></de>
             <en><![CDATA[All groups (count: [count])]]></en>
+            <es><![CDATA[Todos los grupos (total: [count])]]></es>
+            <pt><![CDATA[Todos os grupos (total: [count])]]></pt>
+            <fr><![CDATA[Tous les groupes (nombre : [count])]]></fr>
+            <it><![CDATA[Tutti i gruppi (totale: [count])]]></it>
+            <pl><![CDATA[Wszystkie grupy (liczba: [count])]]></pl>
         </locale>
         <locale name="export.window.group.external.label">
-            <de><![CDATA[Sprachvariablen aus anderen Gruppen, die von den gewählte(n) Export-Gruppe(n) überschrieben werden, mitexportieren]]></de>
+            <de><![CDATA[Sprachvariablen aus anderen Gruppen mitexportieren, die von den gewählten Exportgruppen überschrieben werden]]></de>
             <en><![CDATA[Export translations of other groups that are overwritten by the selected export group(s)]]></en>
+            <es><![CDATA[Incluir las traducciones de otros grupos que son sobrescritas por los grupos seleccionados para la exportación]]></es>
+            <pt><![CDATA[Incluir as traduções de outros grupos que são substituídas pelos grupos selecionados para exportação]]></pt>
+            <fr><![CDATA[Inclure les traductions d’autres groupes qui sont remplacées par les groupes sélectionnés pour l’exportation]]></fr>
+            <it><![CDATA[Includi le traduzioni di altri gruppi sovrascritte dai gruppi selezionati per l’esportazione]]></it>
+            <pl><![CDATA[Uwzględnij tłumaczenia z innych grup, które są nadpisywane przez grupy wybrane do eksportu]]></pl>
         </locale>
         <locale name="export.window.language">
             <de><![CDATA[Sprachenwahl]]></de>
             <en><![CDATA[Language choice]]></en>
+            <es><![CDATA[Selección de idiomas]]></es>
+            <pt><![CDATA[Seleção de idiomas]]></pt>
+            <fr><![CDATA[Sélection des langues]]></fr>
+            <it><![CDATA[Selezione delle lingue]]></it>
+            <pl><![CDATA[Wybór języków]]></pl>
         </locale>
         <locale name="export.window.type">
             <de><![CDATA[Export-Typ]]></de>
             <en><![CDATA[Export type]]></en>
+            <es><![CDATA[Tipo de exportación]]></es>
+            <pt><![CDATA[Tipo de exportação]]></pt>
+            <fr><![CDATA[Type d’exportation]]></fr>
+            <it><![CDATA[Tipo di esportazione]]></it>
+            <pl><![CDATA[Typ eksportu]]></pl>
         </locale>
         <locale name="export.window.type.original.label">
             <de><![CDATA[Original]]></de>
             <en><![CDATA[Original]]></en>
+            <es><![CDATA[Originales]]></es>
+            <pt><![CDATA[Originais]]></pt>
+            <fr><![CDATA[Originales]]></fr>
+            <it><![CDATA[Originali]]></it>
+            <pl><![CDATA[Oryginalne]]></pl>
         </locale>
         <locale name="export.window.type.edit.label">
-            <de><![CDATA[Edit]]></de>
-            <en><![CDATA[Edit]]></en>
+            <de><![CDATA[Benutzerdefiniert]]></de>
+            <en><![CDATA[Custom]]></en>
+            <es><![CDATA[Personalizadas]]></es>
+            <pt><![CDATA[Personalizadas]]></pt>
+            <fr><![CDATA[Personnalisées]]></fr>
+            <it><![CDATA[Personalizzate]]></it>
+            <pl><![CDATA[Niestandardowe]]></pl>
         </locale>
         <locale name="export.window.type.edit.overwrite.label">
             <de><![CDATA[Leere, benutzerdefinierte Felder durch Standardwerte ersetzen]]></de>
             <en><![CDATA[Use original value in case of empty custom value]]></en>
+            <es><![CDATA[Usar el valor original cuando el valor personalizado esté vacío]]></es>
+            <pt><![CDATA[Utilizar o valor original quando o valor personalizado estiver vazio]]></pt>
+            <fr><![CDATA[Utiliser la valeur d’origine si la valeur personnalisée est vide]]></fr>
+            <it><![CDATA[Usa il valore originale se il valore personalizzato è vuoto]]></it>
+            <pl><![CDATA[Użyj wartości oryginalnej, jeśli wartość niestandardowa jest pusta]]></pl>
         </locale>
         <locale name="grid.title.variable">
             <de><![CDATA[Variable]]></de>
             <en><![CDATA[Variable]]></en>
+            <es><![CDATA[Variable]]></es>
+            <pt><![CDATA[Variável]]></pt>
+            <fr><![CDATA[Variable]]></fr>
+            <it><![CDATA[Variabile]]></it>
+            <pl><![CDATA[Zmienna]]></pl>
         </locale>
         <locale name="grid.title.group">
             <de><![CDATA[Gruppe]]></de>
-            <en><![CDATA[Groupe]]></en>
+            <en><![CDATA[Group]]></en>
+            <es><![CDATA[Grupo]]></es>
+            <pt><![CDATA[Grupo]]></pt>
+            <fr><![CDATA[Groupe]]></fr>
+            <it><![CDATA[Gruppo]]></it>
+            <pl><![CDATA[Grupa]]></pl>
         </locale>
         <locale name="grid.title.type">
             <de><![CDATA[Typ]]></de>
             <en><![CDATA[Type]]></en>
+            <es><![CDATA[Tipo]]></es>
+            <pt><![CDATA[Tipo]]></pt>
+            <fr><![CDATA[Type]]></fr>
+            <it><![CDATA[Tipo]]></it>
+            <pl><![CDATA[Typ]]></pl>
         </locale>
         <locale name="grid.title.html">
             <de><![CDATA[HTML]]></de>
             <en><![CDATA[HTML]]></en>
+            <es><![CDATA[HTML]]></es>
+            <pt><![CDATA[HTML]]></pt>
+            <fr><![CDATA[HTML]]></fr>
+            <it><![CDATA[HTML]]></it>
+            <pl><![CDATA[HTML]]></pl>
         </locale>
         <locale name="grid.title.origin_package">
             <de><![CDATA[Quell-Paket]]></de>
             <en><![CDATA[Package of origin]]></en>
+            <es><![CDATA[Paquete de origen]]></es>
+            <pt><![CDATA[Pacote de origem]]></pt>
+            <fr><![CDATA[Paquet d’origine]]></fr>
+            <it><![CDATA[Pacchetto di origine]]></it>
+            <pl><![CDATA[Pakiet źródłowy]]></pl>
         </locale>
         <locale name="btn.add.var.text">
             <de><![CDATA[Variable(n) hinzufügen]]></de>
             <en><![CDATA[Add variables]]></en>
+            <es><![CDATA[Añadir variables]]></es>
+            <pt><![CDATA[Adicionar variáveis]]></pt>
+            <fr><![CDATA[Ajouter des variables]]></fr>
+            <it><![CDATA[Aggiungi variabili]]></it>
+            <pl><![CDATA[Dodaj zmienne]]></pl>
         </locale>
         <locale name="btn.del.var.text">
             <de><![CDATA[Variable(n) löschen]]></de>
             <en><![CDATA[Delete variables]]></en>
+            <es><![CDATA[Eliminar variables]]></es>
+            <pt><![CDATA[Eliminar variáveis]]></pt>
+            <fr><![CDATA[Supprimer les variables]]></fr>
+            <it><![CDATA[Elimina variabili]]></it>
+            <pl><![CDATA[Usuń zmienne]]></pl>
         </locale>
         <locale name="btn.search.sheet.text">
             <de><![CDATA[Suche starten]]></de>
             <en><![CDATA[Start search]]></en>
+            <es><![CDATA[Iniciar búsqueda]]></es>
+            <pt><![CDATA[Iniciar pesquisa]]></pt>
+            <fr><![CDATA[Lancer la recherche]]></fr>
+            <it><![CDATA[Avvia la ricerca]]></it>
+            <pl><![CDATA[Rozpocznij wyszukiwanie]]></pl>
         </locale>
         <locale name="btn.search.title">
             <de><![CDATA[Nach Sprachvariablen oder Übersetzungen suchen]]></de>
             <en><![CDATA[Search translations]]></en>
+            <es><![CDATA[Buscar variables de traducción o traducciones]]></es>
+            <pt><![CDATA[Pesquisar variáveis de tradução ou traduções]]></pt>
+            <fr><![CDATA[Rechercher des variables de traduction ou des traductions]]></fr>
+            <it><![CDATA[Cerca variabili di traduzione o traduzioni]]></it>
+            <pl><![CDATA[Szukaj zmiennych tłumaczeń lub tłumaczeń]]></pl>
         </locale>
         <locale name="btn.search.alt">
             <de><![CDATA[Nach Sprachvariablen oder Übersetzungen suchen]]></de>
             <en><![CDATA[Search translations]]></en>
+            <es><![CDATA[Buscar variables de traducción o traducciones]]></es>
+            <pt><![CDATA[Pesquisar variáveis de tradução ou traduções]]></pt>
+            <fr><![CDATA[Rechercher des variables de traduction ou des traductions]]></fr>
+            <it><![CDATA[Cerca variabili di traduzione o traduzioni]]></it>
+            <pl><![CDATA[Szukaj zmiennych tłumaczeń lub tłumaczeń]]></pl>
         </locale>
         <locale name="btn.addGroup.text">
             <de><![CDATA[Gruppe hinzufügen]]></de>
             <en><![CDATA[Add group]]></en>
+            <es><![CDATA[Añadir grupo]]></es>
+            <pt><![CDATA[Adicionar grupo]]></pt>
+            <fr><![CDATA[Ajouter un groupe]]></fr>
+            <it><![CDATA[Aggiungi gruppo]]></it>
+            <pl><![CDATA[Dodaj grupę]]></pl>
         </locale>
         <locale name="btn.import.text">
             <de><![CDATA[Import]]></de>
             <en><![CDATA[Import]]></en>
+            <es><![CDATA[Importar]]></es>
+            <pt><![CDATA[Importar]]></pt>
+            <fr><![CDATA[Importer]]></fr>
+            <it><![CDATA[Importa]]></it>
+            <pl><![CDATA[Importuj]]></pl>
         </locale>
         <locale name="btn.export.text">
             <de><![CDATA[Export]]></de>
             <en><![CDATA[Export]]></en>
+            <es><![CDATA[Exportar]]></es>
+            <pt><![CDATA[Exportar]]></pt>
+            <fr><![CDATA[Exporter]]></fr>
+            <it><![CDATA[Esporta]]></it>
+            <pl><![CDATA[Eksportuj]]></pl>
         </locale>
         <locale name="btn.publish.text">
             <de><![CDATA[Veröffentlichen]]></de>
             <en><![CDATA[Publish]]></en>
+            <es><![CDATA[Publicar]]></es>
+            <pt><![CDATA[Publicar]]></pt>
+            <fr><![CDATA[Publier]]></fr>
+            <it><![CDATA[Pubblica]]></it>
+            <pl><![CDATA[Opublikuj]]></pl>
         </locale>
         <locale name="search.params.active">
-            <de><![CDATA[Sucheparameter sind aktiviert. Klicken Sie hier um die Suche zu beenden]]></de>
-            <en><![CDATA[Search is active. Please click here to quit the Search.]]></en>
+            <de><![CDATA[Suchparameter sind aktiviert. Klicken Sie hier, um die Suche zu beenden.]]></de>
+            <en><![CDATA[Search filters are active. Click here to end the search.]]></en>
+            <es><![CDATA[Hay filtros de búsqueda activos. Haz clic aquí para finalizar la búsqueda.]]></es>
+            <pt><![CDATA[Existem filtros de pesquisa ativos. Clique aqui para terminar a pesquisa.]]></pt>
+            <fr><![CDATA[Des filtres de recherche sont actifs. Cliquez ici pour terminer la recherche.]]></fr>
+            <it><![CDATA[Sono attivi dei filtri di ricerca. Clicca qui per terminare la ricerca.]]></it>
+            <pl><![CDATA[Filtry wyszukiwania są aktywne. Kliknij tutaj, aby zakończyć wyszukiwanie.]]></pl>
         </locale>
         <locale name="message.import.success">
             <de><![CDATA[Folgende Variablen wurden erfolgreich importiert]]></de>
             <en><![CDATA[The following variables have been imported successfully]]></en>
+            <es><![CDATA[Las siguientes variables se han importado correctamente]]></es>
+            <pt><![CDATA[As seguintes variáveis foram importadas com sucesso]]></pt>
+            <fr><![CDATA[Les variables suivantes ont bien été importées]]></fr>
+            <it><![CDATA[Le seguenti variabili sono state importate]]></it>
+            <pl><![CDATA[Zaimportowano następujące zmienne]]></pl>
         </locale>
         <locale name="edit.btn.save">
             <de><![CDATA[Speichern]]></de>
             <en><![CDATA[Save]]></en>
+            <es><![CDATA[Guardar]]></es>
+            <pt><![CDATA[Guardar]]></pt>
+            <fr><![CDATA[Enregistrer]]></fr>
+            <it><![CDATA[Salva]]></it>
+            <pl><![CDATA[Zapisz]]></pl>
         </locale>
         <locale name="edit.btn.close">
             <de><![CDATA[Schließen]]></de>
             <en><![CDATA[Close]]></en>
+            <es><![CDATA[Cerrar]]></es>
+            <pt><![CDATA[Fechar]]></pt>
+            <fr><![CDATA[Fermer]]></fr>
+            <it><![CDATA[Chiudi]]></it>
+            <pl><![CDATA[Zamknij]]></pl>
         </locale>
         <locale name="import.window.text">
             <de><![CDATA[<p>Importieren Sie Ihre Übersetzungsdateien.</p>
                 <p>Laden Sie eine Datei per Drag and Drop oder Uploadformular hoch.</p>
                 <p>Diese Datei wird nach Übersetzungsvariablen durchsucht und in das System importiert.</p>]]></de>
-            <en><![CDATA[]]></en>
+            <en><![CDATA[<p>Import your translation files.</p><p>Upload a file using drag and drop or the upload form.</p><p>The file will be scanned for translation variables, which will be imported into the system.</p>]]></en>
+            <es><![CDATA[<p>Importa tus archivos de traducción.</p><p>Sube un archivo arrastrándolo y soltándolo o mediante el formulario de carga.</p><p>Se buscarán variables de traducción en el archivo y se importarán al sistema.</p>]]></es>
+            <pt><![CDATA[<p>Importe os seus ficheiros de tradução.</p><p>Arraste e largue um ficheiro ou utilize o formulário de carregamento.</p><p>O ficheiro será analisado para identificar variáveis de tradução e importá-las para o sistema.</p>]]></pt>
+            <fr><![CDATA[<p>Importez vos fichiers de traduction.</p><p>Importez un fichier par glisser-déposer ou à l’aide du formulaire d’envoi.</p><p>Le fichier sera analysé pour identifier les variables de traduction et les importer dans le système.</p>]]></fr>
+            <it><![CDATA[<p>Importa i tuoi file di traduzione.</p><p>Carica un file trascinandolo oppure utilizzando il modulo di caricamento.</p><p>Il file verrà analizzato per individuare le variabili di traduzione e importarle nel sistema.</p>]]></it>
+            <pl><![CDATA[<p>Zaimportuj pliki tłumaczeń.</p><p>Prześlij plik metodą przeciągnij i upuść lub za pomocą formularza przesyłania.</p><p>System wyszuka w pliku zmienne tłumaczeń i je zaimportuje.</p>]]></pl>
         </locale>
         <locale name="import.window.text.debug.overwrite.vars">
-            <de><![CDATA[Original Übersetzungen überschreiben]]></de>
-            <en><![CDATA[]]></en>
+            <de><![CDATA[Originalübersetzungen überschreiben]]></de>
+            <en><![CDATA[Overwrite original translations]]></en>
+            <es><![CDATA[Sobrescribir las traducciones originales]]></es>
+            <pt><![CDATA[Substituir as traduções originais]]></pt>
+            <fr><![CDATA[Écraser les traductions originales]]></fr>
+            <it><![CDATA[Sovrascrivi le traduzioni originali]]></it>
+            <pl><![CDATA[Nadpisz tłumaczenia oryginalne]]></pl>
         </locale>
         <locale name="export.window.text">
             <de><![CDATA[Wie möchten Sie exportieren?]]></de>
-            <en><![CDATA[]]></en>
+            <en><![CDATA[How would you like to export the translations?]]></en>
+            <es><![CDATA[¿Cómo quieres exportar las traducciones?]]></es>
+            <pt><![CDATA[Como pretende exportar as traduções?]]></pt>
+            <fr><![CDATA[Comment souhaitez-vous exporter les traductions ?]]></fr>
+            <it><![CDATA[Come vuoi esportare le traduzioni?]]></it>
+            <pl><![CDATA[Jak chcesz wyeksportować tłumaczenia?]]></pl>
         </locale>
         <locale name="export.window.option.orig">
-            <de><![CDATA[Nur die original Übersetzungen exportieren]]></de>
-            <en><![CDATA[]]></en>
+            <de><![CDATA[Nur die Originalübersetzungen exportieren]]></de>
+            <en><![CDATA[Export only the original translations]]></en>
+            <es><![CDATA[Exportar solo las traducciones originales]]></es>
+            <pt><![CDATA[Exportar apenas as traduções originais]]></pt>
+            <fr><![CDATA[Exporter uniquement les traductions originales]]></fr>
+            <it><![CDATA[Esporta solo le traduzioni originali]]></it>
+            <pl><![CDATA[Eksportuj tylko tłumaczenia oryginalne]]></pl>
         </locale>
         <locale name="export.window.option.edit">
             <de><![CDATA[Nur die editierten Übersetzungen exportieren]]></de>
-            <en><![CDATA[]]></en>
+            <en><![CDATA[Export only the custom translations]]></en>
+            <es><![CDATA[Exportar solo las traducciones personalizadas]]></es>
+            <pt><![CDATA[Exportar apenas as traduções personalizadas]]></pt>
+            <fr><![CDATA[Exporter uniquement les traductions personnalisées]]></fr>
+            <it><![CDATA[Esporta solo le traduzioni personalizzate]]></it>
+            <pl><![CDATA[Eksportuj tylko tłumaczenia niestandardowe]]></pl>
         </locale>
 
         <locale name="control.variabletranslation.button.create">
             <de><![CDATA[Variable anlegen]]></de>
             <en><![CDATA[Create variable]]></en>
+            <es><![CDATA[Crear variable]]></es>
+            <pt><![CDATA[Criar variável]]></pt>
+            <fr><![CDATA[Créer la variable]]></fr>
+            <it><![CDATA[Crea variabile]]></it>
+            <pl><![CDATA[Utwórz zmienną]]></pl>
         </locale>
         <locale name="control.variabletranslation.button.create.title">
             <de><![CDATA[Die Variable [group] [var] existiert nicht. Per Klick können Sie die Variable anlegen.]]></de>
-            <en><![CDATA[The variable [group] [var] doesn't exists. By clicking, you can create the variable.]]></en>
+            <en><![CDATA[The variable [group] [var] does not exist. Click to create it.]]></en>
+            <es><![CDATA[La variable [group] [var] no existe. Haz clic para crearla.]]></es>
+            <pt><![CDATA[A variável [group] [var] não existe. Clique para a criar.]]></pt>
+            <fr><![CDATA[La variable [group] [var] n’existe pas. Cliquez pour la créer.]]></fr>
+            <it><![CDATA[La variabile [group] [var] non esiste. Clicca per crearla.]]></it>
+            <pl><![CDATA[Zmienna [group] [var] nie istnieje. Kliknij, aby ją utworzyć.]]></pl>
         </locale>
     </groups>
 
@@ -380,10 +817,14 @@ Klicken Sie auf OK, um die neue Sprachvariable anzulegen.]]></de>
         <locale name="package.title">
             <de><![CDATA[QUIQQER - Sprachvariablen]]></de>
             <en><![CDATA[QUIQQER - Translations]]></en>
+            <es><![CDATA[QUIQQER - Traducciones]]></es>
+            <pt><![CDATA[QUIQQER - Traduções]]></pt>
+            <fr><![CDATA[QUIQQER - Traductions]]></fr>
+            <it><![CDATA[QUIQQER - Traduzioni]]></it>
+            <pl><![CDATA[QUIQQER - Tłumaczenia]]></pl>
         </locale>
         <locale name="package.description" html="true">
-            <de><![CDATA[
-            <p>Das quiqqer/translation Paket erweitert QUIQQER um ein Übersetzungs-Panel und Übersetzungsfunktionen.
+            <de><![CDATA[<p>Das quiqqer/translator Paket erweitert QUIQQER um ein Übersetzungs-Panel und Übersetzungsfunktionen.
             Mit dem quiqqer/translator ist es möglich, Übersetzungsvariablen zu editieren / hinzuzufügen oder zu löschen.
             Zusätzlich können Übersetzungen (locale.xml Dateien) importiert und exportiert werden.</p>
 
@@ -391,10 +832,8 @@ Klicken Sie auf OK, um die neue Sprachvariable anzulegen.]]></de>
             JavaScript- (Client) und PHP- (Server) Variablen werden getrennt aufbereitet und zur Verfügung gestellt.</p>
 
             <p>Es wird versucht, auf gettext (http://php.net/manual/de/book.gettext.php) zurückzugreifen,
-            wenn dies der Server nicht unterstützt werden normale ini Dateien verwendet.</p>
-            ]]></de>
-            <en><![CDATA[
-            <p>The quiqqer/translation package extends QUIQQER with a translation panel and translation functions.
+            wenn dies der Server nicht unterstützt werden normale ini Dateien verwendet.</p>]]></de>
+            <en><![CDATA[<p>The quiqqer/translator package extends QUIQQER with a translation panel and translation functions.
             With the quiqqer/translator it is possible to edit / add or delete translation variables.
             In addition, translations (locale.xml files) can be imported and exported.</p>
 
@@ -402,12 +841,21 @@ Klicken Sie auf OK, um die neue Sprachvariable anzulegen.]]></de>
             JavaScript (client) and PHP (server) variables are processed separately and made available.</p>
 
             <p>An attempt is made to access gettext (http://php.net/manual/de/book.gettext.php)
-            if this is not supported the server will use normal ini files.</p>
-            ]]></en>
+            if this is not supported the server will use normal ini files.</p>]]></en>
+            <es><![CDATA[<p>El paquete quiqqer/translator amplía QUIQQER con un panel de traducción y funciones para gestionar traducciones. Permite editar, añadir y eliminar variables de traducción, así como importar y exportar traducciones en archivos locale.xml.</p><p>Las traducciones se guardan en distintos formatos para ofrecer un buen rendimiento. Las variables de JavaScript (cliente) y PHP (servidor) se procesan y se ponen a disposición por separado.</p><p>Se intenta utilizar gettext (http://php.net/manual/de/book.gettext.php). Si el servidor no lo admite, se utilizan archivos ini convencionales.</p>]]></es>
+            <pt><![CDATA[<p>O pacote quiqqer/translator adiciona ao QUIQQER um painel de tradução e funcionalidades para gerir traduções. Permite editar, adicionar e eliminar variáveis de tradução, bem como importar e exportar traduções em ficheiros locale.xml.</p><p>As traduções são guardadas em diferentes formatos para garantir um bom desempenho. As variáveis de JavaScript (cliente) e PHP (servidor) são processadas e disponibilizadas separadamente.</p><p>O sistema tenta utilizar gettext (http://php.net/manual/de/book.gettext.php). Se o servidor não o suportar, são utilizados ficheiros ini convencionais.</p>]]></pt>
+            <fr><![CDATA[<p>Le paquet quiqqer/translator ajoute à QUIQQER un panneau de traduction et des fonctions de gestion des traductions. Il permet de modifier, d’ajouter et de supprimer des variables de traduction, ainsi que d’importer et d’exporter des traductions au format locale.xml.</p><p>Les traductions sont enregistrées dans différents formats pour assurer de bonnes performances. Les variables JavaScript (client) et PHP (serveur) sont traitées et mises à disposition séparément.</p><p>Le système tente d’utiliser gettext (http://php.net/manual/de/book.gettext.php). Si le serveur ne le prend pas en charge, des fichiers ini classiques sont utilisés.</p>]]></fr>
+            <it><![CDATA[<p>Il pacchetto quiqqer/translator aggiunge a QUIQQER un pannello di traduzione e funzionalità per gestire le traduzioni. Permette di modificare, aggiungere ed eliminare variabili di traduzione, oltre a importare ed esportare traduzioni in file locale.xml.</p><p>Le traduzioni vengono salvate in diversi formati per garantire buone prestazioni. Le variabili JavaScript (client) e PHP (server) vengono elaborate e rese disponibili separatamente.</p><p>Il sistema tenta di utilizzare gettext (http://php.net/manual/de/book.gettext.php). Se il server non lo supporta, vengono utilizzati normali file ini.</p>]]></it>
+            <pl><![CDATA[<p>Pakiet quiqqer/translator dodaje do QUIQQER panel tłumaczeń i funkcje zarządzania tłumaczeniami. Umożliwia edytowanie, dodawanie i usuwanie zmiennych tłumaczeń oraz importowanie i eksportowanie tłumaczeń w plikach locale.xml.</p><p>Tłumaczenia są zapisywane w różnych formatach, aby zapewnić wysoką wydajność. Zmienne JavaScript (klient) i PHP (serwer) są przetwarzane i udostępniane oddzielnie.</p><p>System próbuje użyć gettext (http://php.net/manual/de/book.gettext.php). Jeśli serwer go nie obsługuje, używane są zwykłe pliki ini.</p>]]></pl>
         </locale>
         <locale name="package.menu.title">
             <de><![CDATA[Sprachvariablen]]></de>
             <en><![CDATA[Translations]]></en>
+            <es><![CDATA[Traducciones]]></es>
+            <pt><![CDATA[Traduções]]></pt>
+            <fr><![CDATA[Traductions]]></fr>
+            <it><![CDATA[Traduzioni]]></it>
+            <pl><![CDATA[Tłumaczenia]]></pl>
         </locale>
     </groups>
 

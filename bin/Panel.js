@@ -411,7 +411,7 @@ define('package/quiqqer/translator/bin/Panel', [
                     width = Body.getSize().x - 40;
 
                 cols.push({
-                    header: Locale.get('quiqqer/system', 'id'),
+                    header: Locale.get('quiqqer/core', 'id'),
                     dataIndex: 'id',
                     dataType: 'number',
                     width: 50
@@ -1252,11 +1252,11 @@ define('package/quiqqer/translator/bin/Panel', [
                 texticon: false,
 
                 cancel_button: {
-                    text: Locale.get('quiqqer/system', 'cancel'),
+                    text: Locale.get('quiqqer/core', 'cancel'),
                     textimage: 'fa fa-remove'
                 },
                 ok_button: {
-                    text: Locale.get('quiqqer/system', 'ok'),
+                    text: Locale.get('quiqqer/core', 'ok'),
                     textimage: 'fa fa-check'
                 },
 

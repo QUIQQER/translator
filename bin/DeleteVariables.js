@@ -33,7 +33,7 @@ define('package/quiqqer/translator/bin/DeleteVariables', [
             icon       : 'fa fa-trash',
             information: message + Locale.get('quiqqer/translator', 'del.window.text.information'),
             ok_button  : {
-                text     : Locale.get('quiqqer/system', 'delete'),
+                text     : Locale.get('quiqqer/core', 'delete'),
                 textimage: 'fa fa-trash'
             },
             events     : {

@@ -1088,10 +1088,11 @@ class Translator
      * it combines the language files in none development mode
      *
      * @param string $lang - Language -> eq: "de" or "en" ... and so on
+     * @param bool $refreshCache Rebuild the bundle while keeping the previous file available.
      *
      * @return array<string, string>
      */
-    public static function getJSTranslationFiles(string $lang): array
+    public static function getJSTranslationFiles(string $lang, bool $refreshCache = false): array
     {
         if (strlen($lang) !== 2) {
             return [];
@@ -1105,7 +1106,7 @@ class Translator
 
         QUIFile::mkdir($jsDir . '_cache/');
 
-        if (file_exists($cacheFile) && !$development) {
+        if (file_exists($cacheFile) && !$development && !$refreshCache) {
             return ['locale/_cache' => $cacheFile];
         }
 
@@ -1113,6 +1114,10 @@ class Translator
         $localeSetCalls = [];
 
         foreach ($dirs as $dir) {
+            if ($dir === '_cache') {
+                continue;
+            }
+
             $package_dir = $jsDir . $dir;
             $package_list = QUIFile::readDir($package_dir);
 
@@ -1149,7 +1154,7 @@ class Translator
             }
         }
 
-        if ($development) {
+        if ($development && !$refreshCache) {
             return $result;
         }
 
@@ -1158,9 +1163,56 @@ class Translator
         $cacheData .= PHP_EOL . 'return Locale;';
         $cacheData .= PHP_EOL . '});';
 
-        file_put_contents($cacheFile, $cacheData);
+        self::writeJavaScriptFile($cacheFile, $cacheData);
 
         return ['locale/_cache' => $cacheFile];
+    }
+
+    /**
+     * Replace a complete JavaScript file without exposing a missing or partial file to readers.
+     *
+     * @throws QUI\Exception
+     */
+    private static function writeJavaScriptFile(string $file, string $content): void
+    {
+        $temporary = @tempnam(dirname($file), '.locale-');
+
+        if ($temporary === false || dirname($temporary) !== realpath(dirname($file))) {
+            if ($temporary !== false) {
+                unlink($temporary);
+            }
+
+            throw new QUI\Exception('Unable to create temporary locale file: ' . $file);
+        }
+
+        try {
+            if (@file_put_contents($temporary, $content) !== strlen($content)) {
+                throw new QUI\Exception('Unable to write locale file: ' . $file);
+            }
+
+            $permissions = is_file($file) ? fileperms($file) : false;
+            $permissions = $permissions === false ? (0666 & ~umask()) : ($permissions & 0777);
+
+            if (!@chmod($temporary, $permissions) || !@rename($temporary, $file)) {
+                throw new QUI\Exception('Unable to replace locale file: ' . $file);
+            }
+        } finally {
+            if (file_exists($temporary)) {
+                unlink($temporary);
+            }
+        }
+    }
+
+    /**
+     * Keep URLs referenced by existing pages available while refreshing their contents.
+     *
+     * @param list<string> $languages
+     */
+    private static function refreshJavaScriptCaches(array $languages): void
+    {
+        foreach ($languages as $lang) {
+            self::getJSTranslationFiles($lang, true);
+        }
     }
 
     /**
@@ -1514,17 +1566,12 @@ class Translator
                     // create package dir
                     QUIFile::mkdir($jsDir . $group);
 
-                    if (file_exists($jsDir . $group . '/' . $lang . '.js')) {
-                        unlink($jsDir . $group . '/' . $lang . '.js');
-                    }
-
-                    file_put_contents($jsDir . $group . '/' . $lang . '.js', $js);
+                    self::writeJavaScriptFile($jsDir . $group . '/' . $lang . '.js', $js);
                 }
             }
         }
 
-        // clean cache dir of js files
-        QUI::getTemp()->moveToTemp($dir . '/bin/_cache/');
+        self::refreshJavaScriptCaches($languages);
 
         QUI::getLocale()->refresh();
 
@@ -1686,8 +1733,7 @@ class Translator
             // javascript
             $jsFile = $dir . '/bin/' . $group . '/' . $lang . '.js';
 
-            QUIFile::unlink($jsFile);
-            QUIFile::mkfile($jsFile);
+            QUIFile::mkdir(dirname($jsFile));
 
             $jsContent = "define('locale/" . $group . "/" . $lang . "', ['Locale'], function(Locale)";
             $jsContent .= '{';
@@ -1696,11 +1742,10 @@ class Translator
             $jsContent .= ')';
             $jsContent .= '});';
 
-            file_put_contents($jsFile, $jsContent);
+            self::writeJavaScriptFile($jsFile, $jsContent);
         }
 
-        // clean cache dir of js files
-        QUI::getTemp()->moveToTemp($dir . '/bin/_cache/');
+        self::refreshJavaScriptCaches($languages);
         QUI\Cache\Manager::clearCompleteQuiqqerCache();
 
         QUI::getLocale()->refresh();

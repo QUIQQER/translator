@@ -6,6 +6,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\Table;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use QUI;
 use QUI\Translator;
 use QUI\Translator\DoctrineHelper as DoctrineUtils;
@@ -41,6 +42,154 @@ class TranslatorSqliteTest extends TestCase
     public function testLangsUsesSqliteSchemaMetadata(): void
     {
         self::assertSame(['de', 'en'], Translator::langs());
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function publicationModes(): iterable
+    {
+        yield 'publish one group' => [false];
+        yield 'rebuild all locales' => [true];
+    }
+
+    #[DataProvider('publicationModes')]
+    public function testPublishingKeepsCompleteJavaScriptFilesAvailable(bool $create): void
+    {
+        $this->withLocaleDirectory(function (string $directory) use ($create): void {
+            $group = 'phpunit/cache';
+            $this->connection->insert(Translator::table(), [
+                'groups' => $group, 'var' => 'message', 'datatype' => 'js',
+                'de' => 'new german', 'en' => 'new english'
+            ]);
+            mkdir($directory . 'bin/' . $group, 0700, true);
+            $readers = [];
+            $previous = [];
+            $permissions = [];
+
+            try {
+                foreach (['de', 'en'] as $lang) {
+                    $file = $directory . 'bin/' . $group . '/' . $lang . '.js';
+                    file_put_contents($file, self::javaScript($lang, 'old text'));
+                    $bundle = Translator::getJSTranslationFiles($lang)['locale/_cache'];
+
+                    foreach ([$file, $bundle] as $path) {
+                        $previous[$path] = file_get_contents($path);
+                        $permissions[$path] = fileperms($path) & 0777;
+                        $readers[$path] = fopen($path, 'rb');
+                        self::assertIsResource($readers[$path]);
+                    }
+                }
+
+                $create ? Translator::create() : Translator::publish($group);
+
+                foreach ($readers as $path => $reader) {
+                    self::assertFileExists($path, 'Published URLs must still exist after publication.');
+                    $current = file_get_contents($path);
+                    self::assertIsString($current);
+                    self::assertStringContainsString('new ', $current);
+                    self::assertStringNotContainsString('old text', $current);
+                    self::assertSame($previous[$path], stream_get_contents($reader));
+                    clearstatcache(true, $path);
+                    self::assertSame($permissions[$path], fileperms($path) & 0777);
+                }
+
+                self::assertSame([], glob($directory . 'bin/_cache/.locale-*'));
+                self::assertSame([], glob($directory . 'bin/' . $group . '/.locale-*'));
+            } finally {
+                foreach ($readers as $reader) {
+                    if (is_resource($reader)) {
+                        fclose($reader);
+                    }
+                }
+            }
+        });
+    }
+
+    public function testDevelopmentModeStillReturnsIndividualModules(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            mkdir($directory . 'bin/phpunit/cache', 0700, true);
+            $file = $directory . 'bin/phpunit/cache/de.js';
+            file_put_contents($file, self::javaScript('de', 'development'));
+            QUI::getConfig('etc/conf.ini.php')->set('globals', 'development', 1);
+
+            self::assertSame(['locale/phpunit/cache' => $file], Translator::getJSTranslationFiles('de'));
+            self::assertFileDoesNotExist($directory . 'bin/_cache/de.js');
+            self::assertSame([], Translator::getJSTranslationFiles('invalid'));
+        });
+    }
+
+    public function testFailedCacheReplacementKeepsPreviousFile(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            mkdir($directory . 'bin/phpunit/cache', 0700, true);
+            $source = $directory . 'bin/phpunit/cache/de.js';
+            file_put_contents($source, self::javaScript('de', 'old text'));
+            $bundle = Translator::getJSTranslationFiles('de')['locale/_cache'];
+            $previous = file_get_contents($bundle);
+            file_put_contents($source, self::javaScript('de', 'new text'));
+            chmod(dirname($bundle), 0555);
+            clearstatcache();
+
+            try {
+                if (is_writable(dirname($bundle))) {
+                    self::markTestSkipped('This user bypasses directory write permissions.');
+                }
+
+                try {
+                    Translator::getJSTranslationFiles('de', true);
+                    self::fail('Cache replacement must fail when its directory is not writable.');
+                } catch (QUI\Exception $Exception) {
+                    self::assertStringContainsString('locale file', $Exception->getMessage());
+                }
+
+                self::assertSame($previous, file_get_contents($bundle));
+                self::assertSame([], glob(dirname($bundle) . '/.locale-*'));
+            } finally {
+                chmod(dirname($bundle), 0700);
+            }
+        });
+    }
+
+    private static function javaScript(string $lang, string $text): string
+    {
+        return 'define("locale/phpunit/cache/' . $lang . '", ["Locale"], function(Locale){'
+            . 'Locale.set("' . $lang . '", "phpunit/cache", {"message":"' . $text . '"})});';
+    }
+
+    private function withLocaleDirectory(callable $test): void
+    {
+        $directory = sys_get_temp_dir() . '/translator-js-cache-' . bin2hex(random_bytes(8)) . '/';
+        mkdir($directory, 0700);
+        $previousLocale = QUI::$Locale;
+        $previousEvents = QUI::$Events;
+        $Config = QUI::getConfig('etc/conf.ini.php');
+        $development = $Config->get('globals', 'development');
+        $Locale = $this->createMock(QUI\Locale::class);
+        $Locale->method('dir')->willReturn($directory);
+        $Locale->method('getCurrent')->willReturn('de');
+        QUI::$Locale = $Locale;
+        QUI::$Events = $this->createMock(QUI\Events\Manager::class);
+        $Config->set('globals', 'development', 0);
+
+        try {
+            $test($directory);
+        } finally {
+            QUI::$Locale = $previousLocale;
+            QUI::$Events = $previousEvents;
+            $Config->set('globals', 'development', $development);
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+
+            foreach ($files as $file) {
+                $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+            }
+
+            rmdir($directory);
+        }
     }
 
     public function testAddEditDeleteCrudOnSqlite(): void

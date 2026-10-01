@@ -2,11 +2,14 @@
 
 namespace QUITests\Translator;
 
+use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Logging\Middleware;
 use Doctrine\DBAL\Schema\Table;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Log\LoggerInterface;
 use QUI;
 use QUI\Translator;
 use QUI\Translator\DoctrineHelper as DoctrineUtils;
@@ -16,16 +19,28 @@ class TranslatorSqliteTest extends TestCase
 {
     private Connection $originalConnection;
     private Connection $connection;
+    private int $queryCount = 0;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->originalConnection = QUI::getDataBaseConnection();
-        $this->connection = DriverManager::getConnection([
-            'driver' => 'pdo_sqlite',
-            'memory' => true
-        ]);
+        $Logger = $this->createMock(LoggerInterface::class);
+        $Logger->method('debug')->willReturnCallback(function ($message, array $context): void {
+            if (isset($context['sql'])) {
+                $this->queryCount++;
+            }
+        });
+        $Configuration = new Configuration();
+        $Configuration->setMiddlewares([new Middleware($Logger)]);
+        $this->connection = DriverManager::getConnection(
+            [
+                'driver' => 'pdo_sqlite',
+                'memory' => true
+            ],
+            $Configuration
+        );
 
         $this->setConnection($this->connection);
         $this->createTranslatorTable();
@@ -41,6 +56,68 @@ class TranslatorSqliteTest extends TestCase
 
     public function testLangsUsesSqliteSchemaMetadata(): void
     {
+        self::assertSame(['de', 'en'], Translator::langs());
+    }
+
+    public function testRepeatedLangsCallsDoNotExecuteQueries(): void
+    {
+        $this->queryCount = 0;
+        self::assertSame(['de', 'en'], Translator::langs());
+        self::assertGreaterThan(0, $this->queryCount);
+        $this->queryCount = 0;
+
+        self::assertSame(['de', 'en'], Translator::langs());
+        self::assertSame(['de', 'en'], Translator::langs());
+        self::assertSame(0, $this->queryCount);
+    }
+
+    public function testAddingLanguageInvalidatesLanguageCache(): void
+    {
+        self::assertSame(['de', 'en'], Translator::langs());
+
+        Translator::addLang('fr');
+
+        self::assertSame(['de', 'en', 'fr'], Translator::langs());
+        $this->queryCount = 0;
+        self::assertSame(['de', 'en', 'fr'], Translator::langs());
+        self::assertSame(0, $this->queryCount);
+    }
+
+    public function testLanguageCacheDoesNotLeakBetweenConnections(): void
+    {
+        self::assertSame(['de', 'en'], Translator::langs());
+        $OtherConnection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true
+        ]);
+        $Table = new Table(Translator::table());
+        $Table->addColumn('fr', 'text');
+        $Table->addColumn('fr_edit', 'text');
+        $OtherConnection->createSchemaManager()->createTable($Table);
+
+        try {
+            $this->setConnection($OtherConnection);
+            self::assertSame(['fr'], Translator::langs());
+            $this->setConnection($this->connection);
+            self::assertSame(['de', 'en'], Translator::langs());
+        } finally {
+            $this->setConnection($this->connection);
+            $OtherConnection->close();
+        }
+    }
+
+    public function testMissingTableIsNotCachedAsAnEmptyLanguageList(): void
+    {
+        $this->connection->createSchemaManager()->dropTable(Translator::table());
+
+        try {
+            Translator::langs();
+            self::fail('Reading languages without a translation table must fail.');
+        } catch (QUI\Database\Exception $Exception) {
+            self::assertStringContainsString(Translator::table(), $Exception->getMessage());
+        }
+
+        $this->createTranslatorTable();
         self::assertSame(['de', 'en'], Translator::langs());
     }
 
@@ -103,6 +180,129 @@ class TranslatorSqliteTest extends TestCase
                     }
                 }
             }
+        });
+    }
+
+    public function testCreatePreservesIniContentsAcrossGroupsAndLanguages(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            $defaults = [
+                'groups' => 'phpunit/ini',
+                'package' => 'phpunit/base',
+                'datatype' => 'php',
+                'de' => '',
+                'de_edit' => '',
+                'en' => '',
+                'en_edit' => ''
+            ];
+            $rows = [
+                [
+                    'var' => 'shared',
+                    'de' => 'niedrig',
+                    'en' => 'low',
+                    'priority' => 1
+                ],
+                [
+                    'groups' => 'phpunit/other',
+                    'var' => 'message',
+                    'datatype' => 'php,js',
+                    'de' => 'Andere Gruppe',
+                    'en' => 'Other group',
+                    'priority' => 2
+                ],
+                [
+                    'var' => 'special',
+                    'de' => "  \"Zitat\" \\ Pfad\nZeile  ",
+                    'en' => ' "Quote" ',
+                    'priority' => 3
+                ],
+                [
+                    'var' => 'on',
+                    'de' => ' ',
+                    'en' => ' yes ',
+                    'priority' => 4
+                ],
+                [
+                    'var' => 'shared',
+                    'package' => 'phpunit/override',
+                    'de' => 'Original',
+                    'de_edit' => 'Angepasst',
+                    'en' => 'Original',
+                    'en_edit' => 'Custom',
+                    'priority' => 5
+                ],
+                [
+                    'var' => 'empty',
+                    'priority' => 6
+                ],
+                [
+                    'groups' => 'phpunit/js-only',
+                    'var' => 'message',
+                    'datatype' => 'js',
+                    'de' => 'Nur JavaScript',
+                    'en' => 'JavaScript only',
+                    'priority' => 7
+                ]
+            ];
+
+            foreach ($rows as $row) {
+                $this->connection->insert(Translator::table(), array_replace($defaults, $row));
+            }
+
+            $german = <<<'INI'
+shared= "niedrig"
+special= "\"Zitat\" \\ Pfad{\n}Zeile"
+`on`= " "
+shared= "Angepasst"
+INI;
+            $english = <<<'INI'
+shared= "low"
+special= "\"Quote\""
+`on`= "yes"
+shared= "Custom"
+INI;
+            $expected = [
+                'de/LC_MESSAGES/phpunit_ini.ini.php' => $german . "\n",
+                'en/LC_MESSAGES/phpunit_ini.ini.php' => $english . "\n",
+                'de/LC_MESSAGES/phpunit_other.ini.php' => 'message= "Andere Gruppe"' . "\n",
+                'en/LC_MESSAGES/phpunit_other.ini.php' => 'message= "Other group"' . "\n"
+            ];
+
+            for ($run = 0; $run < 2; $run++) {
+                Translator::create();
+
+                foreach ($expected as $path => $content) {
+                    self::assertSame($content, file_get_contents($directory . $path));
+                }
+
+                foreach (['de', 'en'] as $lang) {
+                    self::assertFileDoesNotExist($directory . $lang . '/LC_MESSAGES/phpunit_js-only.ini.php');
+                }
+            }
+        });
+    }
+
+    public function testGeneratedIniFilesStillSupportSingleLineAppending(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            $this->connection->insert(Translator::table(), [
+                'groups' => 'phpunit/ini',
+                'var' => 'original',
+                'datatype' => 'php',
+                'de' => 'Original',
+                'en' => 'Original'
+            ]);
+
+            Translator::create();
+            $file = $directory . 'de/LC_MESSAGES/phpunit_ini.ini.php';
+
+            self::assertTrue(QUI\Utils\System\File::mkfile($file));
+            QUI\Utils\System\File::putLineToFile($file, 'additional= "Added individually"');
+
+            self::assertSame(
+                'original= "Original"' . "\n" . 'additional= "Added individually"' . "\n",
+                file_get_contents($file)
+            );
         });
     }
 

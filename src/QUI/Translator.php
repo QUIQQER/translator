@@ -6,8 +6,10 @@
 
 namespace QUI;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception as DbalException;
 use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Exception\TableDoesNotExist;
 use Doctrine\DBAL\Schema\TableDiff;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -83,6 +85,15 @@ class Translator
      * @var list<string>|null
      */
     protected static ?array $availableLanguages = null;
+
+    /**
+     * @var list<string>|null
+     */
+    protected static ?array $languages = null;
+
+    protected static ?Connection $languagesConnection = null;
+
+    protected static ?string $languagesTable = null;
 
     /**
      * @var string|null
@@ -348,6 +359,7 @@ class Translator
         }
 
         try {
+            self::$languages = null;
             QUI::getSchemaManager()->alterTable(new TableDiff($Table, addedColumns: $addedColumns));
         } catch (DbalException $Exception) {
             throw self::createDatabaseException($Exception);
@@ -1465,6 +1477,8 @@ class Translator
             // damit die höchste Priorität zuletzt kommt und die davor überschreibt,
             // ist verwirrend, aber somit sparen wir ein Query
 
+            $iniContents = [];
+
             foreach ($result as $entry) {
                 if (self::isEmpty($entry[$lang]) && self::isEmpty($entry[$lang . '_edit'])) {
                     continue;
@@ -1530,12 +1544,17 @@ class Translator
                 }
 
                 $ini = $folders[$lang] . str_replace('/', '_', $entry['groups']) . '.ini.php';
-                $iniValue = $value;
-                $ini_str = $iniVar . '= "' . $iniValue . '"';
-
-                QUIFile::mkfile($ini);
-                QUIFile::putLineToFile($ini, $ini_str);
+                $iniContents[$ini] ??= '';
+                $iniContents[$ini] .= $iniVar . '= "' . $value . '"' . "\n";
             }
+
+            foreach ($iniContents as $ini => $content) {
+                if (@file_put_contents($ini, $content) !== strlen($content)) {
+                    throw new QUI\Exception('Unable to write locale file: ' . $ini);
+                }
+            }
+
+            unset($iniContents);
 
             // create JavaScript lang files
             $jsDir = $dir . '/bin/';
@@ -2475,7 +2494,37 @@ class Translator
      */
     public static function langs(): array
     {
-        $columns = self::introspectTranslatorTable()->getColumns();
+        $Connection = QUI::getDataBaseConnection();
+        $table = self::table();
+
+        if (
+            self::$languages !== null
+            && self::$languagesConnection === $Connection
+            && self::$languagesTable === $table
+        ) {
+            return self::$languages;
+        }
+
+        if ($table === '') {
+            throw new QUI\Exception('Database table name is not available');
+        }
+
+        try {
+            $SchemaManager = QUI::getSchemaManager();
+
+            // @phpstan-ignore function.alreadyNarrowedType
+            if (method_exists($SchemaManager, 'introspectTableColumnsByUnquotedName')) {
+                $columns = $SchemaManager->introspectTableColumnsByUnquotedName($table);
+            } else {
+                $columns = $SchemaManager->listTableColumns($table);
+            }
+
+            if ($columns === []) {
+                throw TableDoesNotExist::new($table);
+            }
+        } catch (DbalException $Exception) {
+            throw self::createDatabaseException($Exception);
+        }
 
         $fields = [];
 
@@ -2505,6 +2554,10 @@ class Translator
 
             $languages[] = $entry;
         }
+
+        self::$languages = $languages;
+        self::$languagesConnection = $Connection;
+        self::$languagesTable = $table;
 
         return $languages;
     }

@@ -2,11 +2,14 @@
 
 namespace QUITests\Translator;
 
+use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Logging\Middleware;
 use Doctrine\DBAL\Schema\Table;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Log\LoggerInterface;
 use QUI;
 use QUI\Translator;
 use QUI\Translator\DoctrineHelper as DoctrineUtils;
@@ -16,16 +19,28 @@ class TranslatorSqliteTest extends TestCase
 {
     private Connection $originalConnection;
     private Connection $connection;
+    private int $queryCount = 0;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->originalConnection = QUI::getDataBaseConnection();
-        $this->connection = DriverManager::getConnection([
-            'driver' => 'pdo_sqlite',
-            'memory' => true
-        ]);
+        $Logger = $this->createMock(LoggerInterface::class);
+        $Logger->method('debug')->willReturnCallback(function ($message, array $context): void {
+            if (isset($context['sql'])) {
+                $this->queryCount++;
+            }
+        });
+        $Configuration = new Configuration();
+        $Configuration->setMiddlewares([new Middleware($Logger)]);
+        $this->connection = DriverManager::getConnection(
+            [
+                'driver' => 'pdo_sqlite',
+                'memory' => true
+            ],
+            $Configuration
+        );
 
         $this->setConnection($this->connection);
         $this->createTranslatorTable();
@@ -41,6 +56,68 @@ class TranslatorSqliteTest extends TestCase
 
     public function testLangsUsesSqliteSchemaMetadata(): void
     {
+        self::assertSame(['de', 'en'], Translator::langs());
+    }
+
+    public function testRepeatedLangsCallsDoNotExecuteQueries(): void
+    {
+        $this->queryCount = 0;
+        self::assertSame(['de', 'en'], Translator::langs());
+        self::assertGreaterThan(0, $this->queryCount);
+        $this->queryCount = 0;
+
+        self::assertSame(['de', 'en'], Translator::langs());
+        self::assertSame(['de', 'en'], Translator::langs());
+        self::assertSame(0, $this->queryCount);
+    }
+
+    public function testAddingLanguageInvalidatesLanguageCache(): void
+    {
+        self::assertSame(['de', 'en'], Translator::langs());
+
+        Translator::addLang('fr');
+
+        self::assertSame(['de', 'en', 'fr'], Translator::langs());
+        $this->queryCount = 0;
+        self::assertSame(['de', 'en', 'fr'], Translator::langs());
+        self::assertSame(0, $this->queryCount);
+    }
+
+    public function testLanguageCacheDoesNotLeakBetweenConnections(): void
+    {
+        self::assertSame(['de', 'en'], Translator::langs());
+        $OtherConnection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true
+        ]);
+        $Table = new Table(Translator::table());
+        $Table->addColumn('fr', 'text');
+        $Table->addColumn('fr_edit', 'text');
+        $OtherConnection->createSchemaManager()->createTable($Table);
+
+        try {
+            $this->setConnection($OtherConnection);
+            self::assertSame(['fr'], Translator::langs());
+            $this->setConnection($this->connection);
+            self::assertSame(['de', 'en'], Translator::langs());
+        } finally {
+            $this->setConnection($this->connection);
+            $OtherConnection->close();
+        }
+    }
+
+    public function testMissingTableIsNotCachedAsAnEmptyLanguageList(): void
+    {
+        $this->connection->createSchemaManager()->dropTable(Translator::table());
+
+        try {
+            Translator::langs();
+            self::fail('Reading languages without a translation table must fail.');
+        } catch (QUI\Database\Exception $Exception) {
+            self::assertStringContainsString(Translator::table(), $Exception->getMessage());
+        }
+
+        $this->createTranslatorTable();
         self::assertSame(['de', 'en'], Translator::langs());
     }
 

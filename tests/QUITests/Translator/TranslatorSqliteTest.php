@@ -183,6 +183,129 @@ class TranslatorSqliteTest extends TestCase
         });
     }
 
+    public function testCreatePreservesIniContentsAcrossGroupsAndLanguages(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            $defaults = [
+                'groups' => 'phpunit/ini',
+                'package' => 'phpunit/base',
+                'datatype' => 'php',
+                'de' => '',
+                'de_edit' => '',
+                'en' => '',
+                'en_edit' => ''
+            ];
+            $rows = [
+                [
+                    'var' => 'shared',
+                    'de' => 'niedrig',
+                    'en' => 'low',
+                    'priority' => 1
+                ],
+                [
+                    'groups' => 'phpunit/other',
+                    'var' => 'message',
+                    'datatype' => 'php,js',
+                    'de' => 'Andere Gruppe',
+                    'en' => 'Other group',
+                    'priority' => 2
+                ],
+                [
+                    'var' => 'special',
+                    'de' => "  \"Zitat\" \\ Pfad\nZeile  ",
+                    'en' => ' "Quote" ',
+                    'priority' => 3
+                ],
+                [
+                    'var' => 'on',
+                    'de' => ' ',
+                    'en' => ' yes ',
+                    'priority' => 4
+                ],
+                [
+                    'var' => 'shared',
+                    'package' => 'phpunit/override',
+                    'de' => 'Original',
+                    'de_edit' => 'Angepasst',
+                    'en' => 'Original',
+                    'en_edit' => 'Custom',
+                    'priority' => 5
+                ],
+                [
+                    'var' => 'empty',
+                    'priority' => 6
+                ],
+                [
+                    'groups' => 'phpunit/js-only',
+                    'var' => 'message',
+                    'datatype' => 'js',
+                    'de' => 'Nur JavaScript',
+                    'en' => 'JavaScript only',
+                    'priority' => 7
+                ]
+            ];
+
+            foreach ($rows as $row) {
+                $this->connection->insert(Translator::table(), array_replace($defaults, $row));
+            }
+
+            $german = <<<'INI'
+shared= "niedrig"
+special= "\"Zitat\" \\ Pfad{\n}Zeile"
+`on`= " "
+shared= "Angepasst"
+INI;
+            $english = <<<'INI'
+shared= "low"
+special= "\"Quote\""
+`on`= "yes"
+shared= "Custom"
+INI;
+            $expected = [
+                'de/LC_MESSAGES/phpunit_ini.ini.php' => $german . "\n",
+                'en/LC_MESSAGES/phpunit_ini.ini.php' => $english . "\n",
+                'de/LC_MESSAGES/phpunit_other.ini.php' => 'message= "Andere Gruppe"' . "\n",
+                'en/LC_MESSAGES/phpunit_other.ini.php' => 'message= "Other group"' . "\n"
+            ];
+
+            for ($run = 0; $run < 2; $run++) {
+                Translator::create();
+
+                foreach ($expected as $path => $content) {
+                    self::assertSame($content, file_get_contents($directory . $path));
+                }
+
+                foreach (['de', 'en'] as $lang) {
+                    self::assertFileDoesNotExist($directory . $lang . '/LC_MESSAGES/phpunit_js-only.ini.php');
+                }
+            }
+        });
+    }
+
+    public function testGeneratedIniFilesStillSupportSingleLineAppending(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            $this->connection->insert(Translator::table(), [
+                'groups' => 'phpunit/ini',
+                'var' => 'original',
+                'datatype' => 'php',
+                'de' => 'Original',
+                'en' => 'Original'
+            ]);
+
+            Translator::create();
+            $file = $directory . 'de/LC_MESSAGES/phpunit_ini.ini.php';
+
+            self::assertTrue(QUI\Utils\System\File::mkfile($file));
+            QUI\Utils\System\File::putLineToFile($file, 'additional= "Added individually"');
+
+            self::assertSame(
+                'original= "Original"' . "\n" . 'additional= "Added individually"' . "\n",
+                file_get_contents($file)
+            );
+        });
+    }
+
     public function testDevelopmentModeStillReturnsIndividualModules(): void
     {
         $this->withLocaleDirectory(function (string $directory): void {

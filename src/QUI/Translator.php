@@ -1477,6 +1477,8 @@ class Translator
             // damit die höchste Priorität zuletzt kommt und die davor überschreibt,
             // ist verwirrend, aber somit sparen wir ein Query
 
+            $iniContents = [];
+
             foreach ($result as $entry) {
                 if (self::isEmpty($entry[$lang]) && self::isEmpty($entry[$lang . '_edit'])) {
                     continue;
@@ -1542,12 +1544,17 @@ class Translator
                 }
 
                 $ini = $folders[$lang] . str_replace('/', '_', $entry['groups']) . '.ini.php';
-                $iniValue = $value;
-                $ini_str = $iniVar . '= "' . $iniValue . '"';
-
-                QUIFile::mkfile($ini);
-                QUIFile::putLineToFile($ini, $ini_str);
+                $iniContents[$ini] ??= '';
+                $iniContents[$ini] .= $iniVar . '= "' . $value . '"' . "\n";
             }
+
+            foreach ($iniContents as $ini => $content) {
+                if (@file_put_contents($ini, $content) !== strlen($content)) {
+                    throw new QUI\Exception('Unable to write locale file: ' . $ini);
+                }
+            }
+
+            unset($iniContents);
 
             // create JavaScript lang files
             $jsDir = $dir . '/bin/';

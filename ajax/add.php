@@ -9,7 +9,7 @@
 
 QUI::getAjax()->registerFunction(
     'package_quiqqer_translator_ajax_add',
-    function ($group, $var, $pkg, $datatype, $html) {
+    function ($group, $var, $pkg, $datatype, $html, $context = null) {
         $group = str_replace('/', '!GROUPSEPARATOR!', $group);
         $group = QUI\Utils\Security\Orthos::clear($group);
         $group = str_replace('!GROUPSEPARATOR!', '/', $group);
@@ -23,7 +23,8 @@ QUI::getAjax()->registerFunction(
             $var,
             $pkg,
             $datatype,
-            $html
+            $html,
+            $context
         );
 
         QUI::getMessagesHandler()->addSuccess(
@@ -38,6 +39,6 @@ QUI::getAjax()->registerFunction(
             )
         );
     },
-    ['group', 'var', 'pkg', 'datatype', 'html'],
+    ['group', 'var', 'pkg', 'datatype', 'html', 'context'],
     'Permission::checkAdminUser'
 );

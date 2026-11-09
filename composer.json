@@ -17,7 +17,7 @@
     "require": {
         "php": "^8.2",
         "quiqqer/core": "^2",
-        "quiqqer/utils": "^2.4",
+        "quiqqer/utils": "^2.9.0",
         "quiqqer/qui": "^1"
     },
     "autoload": {

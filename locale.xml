@@ -253,6 +253,10 @@
         </locale>
     </groups>
     <groups name="quiqqer/translator" datatype="js">
+        <locale name="grid.title.context" context="administration">
+            <de>JavaScript-Kontexte (leer: gemeinsam)</de>
+            <en>JavaScript contexts (empty: shared)</en>
+        </locale>
         <locale name="add.window.title">
             <de><![CDATA[Variable hinzufügen: [group]]]></de>
             <en><![CDATA[Add Variable: [group]]]></en>

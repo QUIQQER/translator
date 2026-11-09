@@ -18,7 +18,9 @@ use QUI;
 use QUI\Cache\Manager as CacheManager;
 use QUI\Database\Exception;
 use QUI\Translator\DoctrineHelper as DoctrineUtils;
+use QUI\Translator\PublicationTransaction;
 use QUI\Utils\StringHelper;
+use QUI\Utils\LocaleContext;
 use QUI\Utils\System\File as QUIFile;
 use QUI\Utils\Text\XML;
 
@@ -81,6 +83,7 @@ class Translator
      */
     protected static ?array $localeModifyTimes = null;
 
+
     /**
      * @var list<string>|null
      */
@@ -99,6 +102,182 @@ class Translator
      * @var string|null
      */
     protected static ?string $localePublishVersion = null;
+
+    private static ?Connection $contextSchemaConnection = null;
+
+    private static ?string $contextSchemaTable = null;
+
+    /**
+     * Ensure locale imports also work when another package is set up before Translator.
+     */
+    public static function ensureContextSchema(): void
+    {
+        $Connection = QUI::getDataBaseConnection();
+        $table = self::table();
+
+        if (self::$contextSchemaConnection === $Connection && self::$contextSchemaTable === $table) {
+            return;
+        }
+
+        $directory = self::dir();
+        QUIFile::mkdir($directory);
+        $lock = fopen($directory . '.context-schema.lock', 'c');
+
+        if ($lock === false || !flock($lock, LOCK_EX)) {
+            throw new QUI\Exception('Unable to lock translator schema migration');
+        }
+
+        try {
+            $Table = self::introspectTranslatorTable();
+
+            if ($Table->hasColumn('context')) {
+                self::$contextSchemaConnection = $Connection;
+                self::$contextSchemaTable = $table;
+                return;
+            }
+
+            QUI::getSchemaManager()->alterTable(new TableDiff($Table, addedColumns: [
+                new Column('context', Type::getType('text'), ['notnull' => false])
+            ]));
+            self::$languages = null;
+            self::$localeModifyTimes = [];
+            self::$contextSchemaConnection = $Connection;
+            self::$contextSchemaTable = $table;
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    /** @param array<string, mixed> $locale */
+    private static function importContext(array $locale, string $group, string $package): ?string
+    {
+        if (array_key_exists('context', $locale)) {
+            return LocaleContext::normalize($locale['context']);
+        }
+
+        return $package === '' || $package === $group ? '' : null;
+    }
+
+    /** @return array<string, string> File paths mapped to their owning package. */
+    private static function getPackageLocaleFiles(QUI\Package\Package $Package): array
+    {
+        $file = $Package->getXMLFilePath('locale.xml');
+
+        if (!is_string($file) || !is_file($file)) {
+            return [];
+        }
+
+        $files = [$file => $Package->getName()];
+        $Dom = XML::getDomFromXml($file);
+
+        foreach ($Dom->getElementsByTagName('file') as $File) {
+            $path = $Package->getDir() . ltrim($File->getAttribute('file'), '/');
+
+            if (is_file($path)) {
+                $files[$path] = $File->hasAttribute('package')
+                    ? $File->getAttribute('package') : $Package->getName();
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * Validate the complete import before any row is changed. Each language file
+     * must declare the same metadata, including missing versus explicit context.
+     *
+     * @param array<string, string> $files
+     */
+    private static function validateLocaleContexts(array $files): void
+    {
+        $contexts = [];
+
+        foreach ($files as $file => $package) {
+            $groups = XML::getLocaleGroupsFromDom(XML::getDomFromXml($file));
+
+            foreach ($groups as $group) {
+                foreach ($group['locales'] as $locale) {
+                    $owner = $package !== '' ? $package : ($locale['package'] ?? '');
+                    $key = json_encode([$group['group'], $locale['name'], $owner], JSON_THROW_ON_ERROR);
+                    $context = self::importContext($locale, $group['group'], $owner);
+
+                    if (array_key_exists($key, $contexts) && $contexts[$key] !== $context) {
+                        throw new QUI\Exception('Conflicting locale contexts for ' . $key . ' in ' . $file);
+                    }
+
+                    $contexts[$key] = $context;
+                }
+            }
+        }
+    }
+
+    /**
+     * Return the active immutable publication snapshot. An absent snapshot means
+     * the regular setup has not published contexts yet.
+     *
+     * @return array{version: string, contexts: list<string>, languages: list<string>}
+     */
+    public static function getJSContextManifest(): array
+    {
+        PublicationTransaction::recoverIfNeeded(self::dir(), self::finishPublication(...));
+        $file = self::dir() . 'bin/_contexts/manifest.json';
+
+        if (!is_file($file)) {
+            return ['version' => '', 'contexts' => [], 'languages' => []];
+        }
+
+        $manifest = json_decode((string)file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+
+        if (!is_array($manifest) || !isset($manifest['version'], $manifest['contexts'], $manifest['languages'])) {
+            throw new QUI\Exception('Invalid locale context manifest');
+        }
+
+        return $manifest;
+    }
+
+    /**
+     * Return common and requested context modules from one publication snapshot.
+     * Existing getJSTranslationFiles() remains the complete legacy collection.
+     * Context selection requires a publication created by the regular setup.
+     *
+     * @param array{version: string, contexts: list<string>, languages: list<string>}|null $manifest
+     * @return array<string, string>
+     */
+    public static function getJSContextTranslationFiles(
+        string $lang,
+        string $context,
+        ?array $manifest = null
+    ): array {
+        $context = LocaleContext::normalize($context);
+
+        if ($context === '' || str_contains($context, ',')) {
+            throw new \InvalidArgumentException('Exactly one locale context is required');
+        }
+
+        $manifest ??= self::getJSContextManifest();
+
+        if ($manifest['version'] === '') {
+            throw new QUI\Exception('Locale contexts have not been published; run the regular setup');
+        }
+
+        if (!in_array($context, $manifest['contexts'], true)) {
+            throw new \InvalidArgumentException('Unknown locale context: ' . $context);
+        }
+
+        if (!in_array($lang, $manifest['languages'], true)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach (['common', 'c' . bin2hex($context)] as $token) {
+            $prefix = 'locale/_contexts/' . $manifest['version'] . '/' . $token;
+            $result[$prefix] = self::dir() . 'bin/' . substr($prefix, 7) . '/' . $lang . '.js';
+        }
+
+        return $result;
+    }
 
     /**
      * Return the real table name
@@ -230,7 +409,11 @@ class Translator
             $QueryBuilder->groupBy(DoctrineUtils::quoteIdentifier((string)$query['group']));
         }
 
-        if (!empty($query['order'])) {
+        if (isset($query['order']) && is_array($query['order'])) {
+            foreach ($query['order'] as $field => $direction) {
+                $QueryBuilder->addOrderBy(DoctrineUtils::quoteIdentifier($field), $direction);
+            }
+        } elseif (!empty($query['order'])) {
             $order = explode(' ', (string)$query['order']);
             $QueryBuilder->orderBy(
                 DoctrineUtils::quoteIdentifier($order[0]),
@@ -487,6 +670,10 @@ class Translator
                 foreach ($entries as $entry) {
                     $result .= "\t" . '<locale name="' . $entry['var'] . '"';
 
+                    if (isset($entry['context'])) {
+                        $result .= ' context="' . htmlspecialchars($entry['context'], ENT_QUOTES | ENT_XML1) . '"';
+                    }
+
                     if (isset($entry['html']) && $entry['html'] == 1) {
                         $result .= ' html="true"';
                     }
@@ -571,6 +758,8 @@ class Translator
             );
         }
 
+        self::ensureContextSchema();
+        self::validateLocaleContexts([$file => $packageName]);
         $fileMTimes = self::getLocaleModifyTimes();
 
         // nothing has changed
@@ -643,6 +832,8 @@ class Translator
                     $localePackageName = $locale['package'];
                 }
 
+                $locale['context'] = self::importContext($locale, $group, $localePackageName);
+
                 try {
                     self::add($group, $var, $localePackageName);
                 } catch (QUI\Exception $Exception) {
@@ -666,6 +857,7 @@ class Translator
                     // update only _edit fields
                     $_locale = [
                         'datatype' => $datatype,
+                        'context' => $locale['context'],
                         'html' => $locale['html'],
                         'priority' => $locale['priority'],
                         'package' => $localePackageName
@@ -673,7 +865,7 @@ class Translator
 
                     unset($locale['html']);
                     unset($locale['priority']);
-                    unset($locale['id']);
+                    unset($locale['id'], $locale['context'], $locale['package']);
 
                     foreach ($locale as $key => $entry) {
                         $_locale[$key . '_edit'] = $entry;
@@ -721,6 +913,7 @@ class Translator
             return;
         }
 
+        self::validateLocaleContexts(self::getPackageLocaleFiles($Package));
         self::batchImport($file, $Package->getName());
 
         try {
@@ -763,6 +956,8 @@ class Translator
      */
     public static function batchImport(string $file, string $packageName = ''): bool | int
     {
+        self::ensureContextSchema();
+        self::validateLocaleContexts([$file => $packageName]);
         if (!file_exists($file)) {
             throw new QUI\Exception(
                 QUI::getLocale()->get(
@@ -842,6 +1037,7 @@ class Translator
                 $localeVariable = [
                     'group' => $group,
                     'var' => $var,
+                    'context' => self::importContext($locale, $group, $localePackageName),
                     'datatype' => $datatype,
                     'html' => $locale['html'],
                     'priority' => $locale['priority'],
@@ -854,7 +1050,8 @@ class Translator
                     }
                 }
 
-                $localeVariables[trim($group) . '/' . trim($var)] = $localeVariable;
+                $identity = json_encode([trim($group), trim($var), $localePackageName], JSON_THROW_ON_ERROR);
+                $localeVariables[$identity] = $localeVariable;
             }
         }
 
@@ -862,27 +1059,25 @@ class Translator
         $table = DoctrineUtils::quoteIdentifier(self::table());
 
         try {
-            $currentRows = self::fetchDbal([
-                'select' => [
-                    'id',
-                    'groups',
-                    'var',
-                ],
-                'from' => self::table(),
-                'where' => [
-                    'package' => $packageName
-                ]
-            ]);
+            $packages = array_values(array_unique(array_column($localeVariables, 'package')));
+            $currentRows = $Connection->createQueryBuilder()
+                ->select(...array_map(DoctrineUtils::quoteIdentifier(...), ['id', 'groups', 'var', 'package']))
+                ->from($table)
+                ->where(DoctrineUtils::quoteIdentifier('package') . ' IN (:packages)')
+                ->setParameter('packages', $packages, \Doctrine\DBAL\ArrayParameterType::STRING)
+                ->executeQuery()
+                ->fetchAllAssociative();
 
             foreach ($currentRows as $currentRow) {
                 $varGroup = trim($currentRow['groups']);
                 $varName = trim($currentRow['var']);
+                $identity = json_encode([$varGroup, $varName, $currentRow['package']], JSON_THROW_ON_ERROR);
 
-                if (!isset($localeVariables[$varGroup . '/' . $varName])) {
+                if (!isset($localeVariables[$identity])) {
                     continue;
                 }
 
-                $var = $localeVariables[$varGroup . '/' . $varName];
+                $var = $localeVariables[$identity];
                 $updateData = [];
 
                 foreach ($languages as $langCode) {
@@ -891,6 +1086,7 @@ class Translator
                     }
                 }
 
+                $updateData['context'] = $var['context'];
                 $updateData['datatype'] = $var['datatype'];
                 $updateData['html'] = $var['html'];
                 $updateData['priority'] = $var['priority'];
@@ -900,11 +1096,11 @@ class Translator
                     'id' => $currentRow['id']
                 ]));
 
-                unset($localeVariables[$varGroup . '/' . $varName]);
+                unset($localeVariables[$identity]);
             }
 
             $insertColumns = array_merge(
-                ['groups', 'var', 'datatype', 'html', 'priority', 'package'],
+                ['groups', 'var', 'datatype', 'html', 'priority', 'package', 'context'],
                 $languages
             );
             $insertRows = [];
@@ -914,6 +1110,7 @@ class Translator
                 $insertData = [
                     'groups' => $var['group'],
                     'var' => $var['var'],
+                    'context' => $var['context'],
                     'datatype' => $var['datatype'],
                     'html' => $var['html'],
                     'priority' => $var['priority'],
@@ -980,6 +1177,8 @@ class Translator
             return;
         }
 
+        self::validateLocaleContexts(self::getPackageLocaleFiles($Package));
+
         self::import(
             $file,
             $overwriteOriginal,
@@ -1032,7 +1231,7 @@ class Translator
 
         file_put_contents(
             VAR_DIR . 'locale/localefiles',
-            json_encode(self::$localeModifyTimes)
+            json_encode(['format' => 2, 'files' => self::$localeModifyTimes])
         );
     }
 
@@ -1063,11 +1262,8 @@ class Translator
 
         $list = json_decode($cacheContent, true);
 
-        if (!is_array($list)) {
-            $list = [];
-        }
-
-        self::$localeModifyTimes = $list;
+        self::$localeModifyTimes = is_array($list) && ($list['format'] ?? null) === 2
+            ? ($list['files'] ?? []) : [];
 
         return self::$localeModifyTimes;
     }
@@ -1106,6 +1302,16 @@ class Translator
      */
     public static function getJSTranslationFiles(string $lang, bool $refreshCache = false): array
     {
+        return PublicationTransaction::withLock(
+            self::dir(),
+            static fn (): array => self::getJSTranslationFilesUnlocked($lang, $refreshCache),
+            self::finishPublication(...)
+        );
+    }
+
+    /** @return array<string, string> */
+    private static function getJSTranslationFilesUnlocked(string $lang, bool $refreshCache): array
+    {
         if (strlen($lang) !== 2) {
             return [];
         }
@@ -1126,7 +1332,7 @@ class Translator
         $localeSetCalls = [];
 
         foreach ($dirs as $dir) {
-            if ($dir === '_cache') {
+            if ($dir === '_cache' || $dir === '_contexts') {
                 continue;
             }
 
@@ -1187,44 +1393,7 @@ class Translator
      */
     private static function writeJavaScriptFile(string $file, string $content): void
     {
-        $temporary = @tempnam(dirname($file), '.locale-');
-
-        if ($temporary === false || dirname($temporary) !== realpath(dirname($file))) {
-            if ($temporary !== false) {
-                unlink($temporary);
-            }
-
-            throw new QUI\Exception('Unable to create temporary locale file: ' . $file);
-        }
-
-        try {
-            if (@file_put_contents($temporary, $content) !== strlen($content)) {
-                throw new QUI\Exception('Unable to write locale file: ' . $file);
-            }
-
-            $permissions = is_file($file) ? fileperms($file) : false;
-            $permissions = $permissions === false ? (0666 & ~umask()) : ($permissions & 0777);
-
-            if (!@chmod($temporary, $permissions) || !@rename($temporary, $file)) {
-                throw new QUI\Exception('Unable to replace locale file: ' . $file);
-            }
-        } finally {
-            if (file_exists($temporary)) {
-                unlink($temporary);
-            }
-        }
-    }
-
-    /**
-     * Keep URLs referenced by existing pages available while refreshing their contents.
-     *
-     * @param list<string> $languages
-     */
-    private static function refreshJavaScriptCaches(array $languages): void
-    {
-        foreach ($languages as $lang) {
-            self::getJSTranslationFiles($lang, true);
-        }
+        PublicationTransaction::writeFile($file, $content);
     }
 
     /**
@@ -1258,6 +1427,12 @@ class Translator
      */
     public static function getLocalePublishVersion(): string
     {
+        $manifest = self::getJSContextManifest();
+
+        if ($manifest['version'] !== '') {
+            return $manifest['version'];
+        }
+
         if (is_string(self::$localePublishVersion) && self::$localePublishVersion !== '') {
             return self::$localePublishVersion;
         }
@@ -1414,18 +1589,304 @@ class Translator
         }
     }
 
-    /**
-     * Create the locale files
-     *
-     * @throws QUI\Exception
-     */
+    /** Publish the complete collection and activate one immutable context generation. */
     public static function create(): void
     {
-        // first step, a cleanup
-        // so, we get no errors in gettext
-        self::cleanup();
+        self::publishCollection(null);
+    }
 
-        $languages = self::langs();
+    /** Publish a group; all JavaScript views share one effective collection. */
+    public static function publish(string $group): void
+    {
+        self::publishCollection($group);
+    }
+
+    /**
+     * Backfill metadata from unchanged package definitions during a partial update.
+     * Text and individual edit columns are deliberately not part of this migration.
+     * The first committed context manifest marks successful completion.
+     */
+    private static function importExistingContextMetadata(): void
+    {
+        $rows = self::get();
+        $packages = [];
+
+        foreach ($rows as $row) {
+            $package = $row['package'] ?: $row['groups'];
+            $packages[$package] = true;
+        }
+
+        $files = [];
+
+        foreach (array_keys($packages) as $package) {
+            try {
+                $Package = QUI::getPackageManager()->getInstalledPackage($package);
+            } catch (QUI\Exception) {
+                continue;
+            }
+
+            $files += self::getPackageLocaleFiles($Package);
+        }
+
+        self::validateLocaleContexts($files);
+        $definitions = [];
+
+        foreach ($files as $file => $package) {
+            foreach (XML::getLocaleGroupsFromDom(XML::getDomFromXml($file)) as $group) {
+                foreach ($group['locales'] as $locale) {
+                    $definitions[$package][$group['group']][$locale['name']] = self::importContext(
+                        $locale,
+                        $group['group'],
+                        $package
+                    );
+                }
+            }
+        }
+
+        $Connection = QUI::getDataBaseConnection();
+        $Connection->transactional(static function (Connection $Connection) use ($rows, $definitions): void {
+            foreach ($rows as $row) {
+                $package = $row['package'] ?: $row['groups'];
+                $group = $row['groups'];
+                $key = $row['var'];
+                $entries = $definitions[$package][$group] ?? [];
+
+                if (!array_key_exists($key, $entries) || $row['context'] !== null) {
+                    continue;
+                }
+
+                $Connection->createQueryBuilder()
+                    ->update(DoctrineUtils::quoteIdentifier(self::table()))
+                    ->set(DoctrineUtils::quoteIdentifier('context'), ':context')
+                    ->where(DoctrineUtils::quoteIdentifier('id') . ' = :id')
+                    ->andWhere(DoctrineUtils::quoteIdentifier('context') . ' IS NULL')
+                    ->setParameter('context', $entries[$key])
+                    ->setParameter('id', $row['id'])
+                    ->executeStatement();
+            }
+        });
+    }
+
+    private static function publishCollection(?string $group): void
+    {
+        self::ensureContextSchema();
+        PublicationTransaction::withLock(self::dir(), static function () use ($group): void {
+            $languages = self::langs();
+            $previous = self::getJSContextManifest();
+
+            if ($previous['version'] === '') {
+                self::importExistingContextMetadata();
+            }
+
+            $snapshot = self::readPublicationSnapshot($previous['version']);
+            $complete = $group === null || $snapshot === null;
+
+            if ($complete) {
+                self::cleanup();
+            }
+
+            $query = [
+                'from' => self::table(),
+                'order' => ['priority' => 'ASC', 'package' => 'ASC', 'id' => 'ASC']
+            ];
+
+            if (!$complete) {
+                $query['where'] = ['groups' => $group];
+            }
+
+            $freshRows = self::preparePublicationRows(array_values(self::fetchDbal($query)), $languages);
+            $rows = $freshRows;
+
+            if (!$complete) {
+                $rows = array_values(array_filter(
+                    $snapshot,
+                    static fn (array $row): bool => $row['groups'] !== $group
+                ));
+                $rows = array_merge($rows, $freshRows);
+            }
+
+            $collection = QUI\Translator\ContextCollection::build($rows, $languages, $previous['contexts']);
+            $version = self::createLocalePublishVersion();
+            $Publication = new PublicationTransaction(self::dir());
+
+            foreach ($collection['modules'] as $language => $contexts) {
+                foreach ($contexts as $context => $groups) {
+                    $token = $context === 'common' ? 'common' : 'c' . bin2hex($context);
+                    $module = 'locale/_contexts/' . $version . '/' . $token . '/' . $language;
+                    $file = self::dir() . 'bin/_contexts/' . $version . '/' . $token . '/' . $language . '.js';
+                    $payload = json_encode([
+                        'language' => $language,
+                        'version' => $version,
+                        'context' => $context,
+                        'groups' => (object)$groups
+                    ], JSON_THROW_ON_ERROR);
+                    $content = "define('" . $module . "', ['Locale'], function(Locale){var data=" . $payload . ';';
+                    $content .= 'Object.keys(data.groups).forEach(function(group){';
+                    $content .= 'Locale.set(data.language,group,data.groups[group]);});return data;});';
+                    $Publication->stage($file, $content);
+                }
+            }
+
+            if ($complete) {
+                self::createLegacyFiles($freshRows, $languages, $Publication);
+            } else {
+                self::publishLegacyFiles($group, $freshRows, $languages, $Publication);
+            }
+
+            self::writeLegacyCollection($collection['legacy'], $languages, $Publication);
+            $Publication->stage(
+                self::dir() . '.context-snapshots/' . $version . '.json',
+                json_encode(['format' => 1, 'rows' => $rows], JSON_THROW_ON_ERROR)
+            );
+            $manifest = [
+                'version' => $version,
+                'contexts' => $collection['contexts'],
+                'languages' => $languages
+            ];
+            $manifestFile = self::dir() . 'bin/_contexts/manifest.json';
+            $Publication->stage($manifestFile, json_encode($manifest, JSON_THROW_ON_ERROR));
+            $Publication->commit($manifestFile);
+            self::finishPublication();
+            $Publication->complete();
+        }, self::finishPublication(...));
+    }
+
+    /**
+     * Store the already prepared values, never reconstruct context metadata from JS.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private static function readPublicationSnapshot(string $version): ?array
+    {
+        if ($version === '') {
+            return null;
+        }
+
+        $file = self::dir() . '.context-snapshots/' . $version . '.json';
+
+        if (!is_file($file)) {
+            if (is_dir(self::dir() . '.context-snapshots')) {
+                throw new QUI\Exception('Published locale snapshot is missing');
+            }
+
+            return null;
+        }
+
+        $snapshot = json_decode((string)file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+
+        if (!is_array($snapshot) || ($snapshot['format'] ?? null) !== 1 || !is_array($snapshot['rows'] ?? null)) {
+            throw new QUI\Exception('Invalid published locale snapshot');
+        }
+
+        return array_values($snapshot['rows']);
+    }
+
+    /**
+     * Resolve individual text and Output hooks once for both PHP and JavaScript.
+     * Previously published rows are passed through the snapshot unchanged.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @param list<string> $languages
+     * @return list<array<string, mixed>>
+     */
+    private static function preparePublicationRows(array $rows, array $languages): array
+    {
+        $Output = class_exists('QUI\Output') ? new Output() : null;
+
+        foreach ($rows as &$row) {
+            foreach ($languages as $language) {
+                $edit = $row[$language . '_edit'] ?? '';
+                $value = self::isEmpty($edit) ? ($row[$language] ?? '') : $edit;
+                $value = is_array($value) ? '' : (string)$value;
+
+                if (!self::isEmpty($value) && $Output !== null) {
+                    $value = $Output->parse($value);
+                    $value = str_replace(['%5B', '%5D'], ['[', ']'], $value);
+                }
+
+                $row[$language] = $value;
+                $row[$language . '_edit'] = '';
+            }
+        }
+
+        return $rows;
+    }
+
+    /** Cache work runs only after the manifest commit and is retried after interruption. */
+    private static function finishPublication(): void
+    {
+        $manifest = self::getJSContextManifest();
+        self::$localePublishVersion = $manifest['version'];
+        self::saveLocalePublishVersion($manifest['version']);
+        QUI::getLocale()->refresh();
+        QUI\Cache\Manager::clearCompleteQuiqqerCache();
+        QUI::getEvents()->fireEvent('quiqqerTranslatorPublish');
+    }
+
+    /**
+     * Keep legacy paths alive, including empty modules for removed groups.
+     *
+     * @param array<string, array<string, array<string, string>>> $collection
+     * @param list<string> $languages
+     */
+    private static function writeLegacyCollection(
+        array $collection,
+        array $languages,
+        PublicationTransaction $Publication
+    ): void {
+        $directory = self::dir() . 'bin/';
+        $groups = [];
+
+        foreach ($collection as $entries) {
+            foreach (array_keys($entries) as $group) {
+                $groups[$group] = true;
+            }
+        }
+
+        foreach (glob($directory . '*/*', GLOB_ONLYDIR) ?: [] as $path) {
+            $relative = substr($path, strlen($directory));
+
+            if (!str_starts_with($relative, '_')) {
+                $groups[$relative] = true;
+            }
+        }
+
+        foreach ($languages as $language) {
+            $calls = [];
+
+            foreach (array_keys($groups) as $group) {
+                $values = $collection[$language][$group] ?? [];
+                $call = 'Locale.set(' . json_encode($language) . ', ' . json_encode($group) . ', '
+                    . json_encode((object)$values, JSON_THROW_ON_ERROR) . ');';
+                $module = 'locale/' . $group . '/' . $language;
+                $file = $directory . $group . '/' . $language . '.js';
+                $Publication->stage(
+                    $file,
+                    'define(' . json_encode($module) . ", ['Locale'], function(Locale){" . $call . '});'
+                );
+
+                if ($values !== []) {
+                    $calls[] = $call;
+                }
+            }
+
+            $Publication->stage(
+                $directory . '_cache/' . $language . '.js',
+                "define('locale/_cache/" . $language . "', ['Locale'], function(Locale){"
+                    . implode("\n", $calls) . 'return Locale;});'
+            );
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @param list<string> $languages
+     */
+    private static function createLegacyFiles(
+        array $rows,
+        array $languages,
+        PublicationTransaction $Publication
+    ): void {
         $dir = self::dir();
 
         // Sprach Ordner erstellen
@@ -1437,17 +1898,8 @@ class Translator
             $lcMessagePath .= '/LC_MESSAGES/';
 
             $folders[$lang] = $lcMessagePath;
-
-            QUIFile::unlink($folders[$lang]);
-            QUIFile::mkdir($folders[$lang]);
         }
 
-        $js_languages = [];
-        $Output = false;
-
-        if (class_exists('QUI\Output')) {
-            $Output = new Output();
-        }
 
         // Sprachdateien erstellen
         foreach ($languages as $lang) {
@@ -1457,20 +1909,7 @@ class Translator
                 continue;
             }
 
-            $result = self::fetchDbal([
-                'select' => [
-                    $lang,
-                    $lang . '_edit',
-                    'groups',
-                    'var',
-                    'datatype',
-                    'datadefine',
-                    'html',
-                    'priority'
-                ],
-                'from' => self::table(),
-                'order' => 'priority ASC'
-            ]);
+            $result = $rows;
 
             // priority ASC Erklärung:
             // Wir müssen den kleinsten zuerst nehmen,
@@ -1485,13 +1924,7 @@ class Translator
                 }
 
                 if ($entry['datatype'] == 'js') {
-                    $js_languages[$entry['groups']][$lang][] = $entry;
                     continue;
-                }
-
-                // if php,js
-                if (str_contains($entry['datatype'], 'js') || empty($entry['datatype'])) {
-                    $js_languages[$entry['groups']][$lang][] = $entry;
                 }
 
                 $value = $entry[$lang];
@@ -1509,13 +1942,6 @@ class Translator
                     $value = (string)$value;
                 }
 
-                if ($Output) {
-                    $value = $Output->parse($value);
-
-                    // replace because of img src="" use url decode
-                    $value = str_replace('%5B', '[', $value);
-                    $value = str_replace('%5D', ']', $value);
-                }
 
                 $value = str_replace('\\', '\\\\', $value);
                 $value = str_replace('"', '\"', $value);
@@ -1548,56 +1974,16 @@ class Translator
                 $iniContents[$ini] .= $iniVar . '= "' . $value . '"' . "\n";
             }
 
+            foreach (glob($folders[$lang] . '*.ini.php') ?: [] as $ini) {
+                $iniContents[$ini] ??= '';
+            }
+
             foreach ($iniContents as $ini => $content) {
-                if (@file_put_contents($ini, $content) !== strlen($content)) {
-                    throw new QUI\Exception('Unable to write locale file: ' . $ini);
-                }
+                $Publication->stage($ini, $content);
             }
 
             unset($iniContents);
-
-            // create JavaScript lang files
-            $jsDir = $dir . '/bin/';
-
-            QUIFile::mkdir($jsDir);
-
-            foreach ($js_languages as $group => $groupEntry) {
-                foreach ($groupEntry as $lang => $entries) {
-                    $vars = [];
-
-                    foreach ($entries as $entry) {
-                        $value = $entry[$lang];
-
-                        if (isset($entry[$lang . '_edit']) && !empty($entry[$lang . '_edit'])) {
-                            $value = $entry[$lang . '_edit']; // benutzer übersetzung
-                        }
-
-                        $vars[$entry['var']] = $value;
-                    }
-
-                    $js = "define('locale/" . $group . "/" . $lang . "', ['Locale'], function(Locale)";
-                    $js .= '{';
-                    $js .= 'Locale.set("' . $lang . '", "' . $group . '", ';
-                    $js .= json_encode($vars);
-                    $js .= ')';
-                    $js .= '});';
-
-                    // create package dir
-                    QUIFile::mkdir($jsDir . $group);
-
-                    self::writeJavaScriptFile($jsDir . $group . '/' . $lang . '.js', $js);
-                }
-            }
         }
-
-        self::refreshJavaScriptCaches($languages);
-
-        QUI::getLocale()->refresh();
-
-        QUI\Cache\Manager::clearCompleteQuiqqerCache();
-        self::refreshLocalePublishVersion();
-
-        QUI::getEvents()->fireEvent('quiqqerTranslatorPublish');
     }
 
     /**
@@ -1622,21 +2008,16 @@ class Translator
     }
 
     /**
-     * Publish a language group
-     *
-     * @param string $group
-     *
-     * @throws QUI\Exception
+     * @param list<array<string, mixed>> $rows
+     * @param list<string> $languages
      */
-    public static function publish(string $group): void
-    {
-        $languages = self::langs();
+    private static function publishLegacyFiles(
+        string $group,
+        array $rows,
+        array $languages,
+        PublicationTransaction $Publication
+    ): void {
         $dir = self::dir();
-        $Output = false;
-
-        if (class_exists('QUI\Output')) {
-            $Output = new Output();
-        }
 
         foreach ($languages as $lang) {
             if (strlen($lang) !== 2) {
@@ -1647,31 +2028,14 @@ class Translator
             $folder .= StringHelper::toLower($lang); //. '_' . StringHelper::toUpper($lang);
             $folder .= '/LC_MESSAGES/';
 
-            QUIFile::mkdir($folder);
 
-            $result = self::fetchDbal([
-                'select' => [
-                    $lang,
-                    $lang . '_edit',
-                    'groups',
-                    'var',
-                    'datatype',
-                    'datadefine',
-                    'html'
-                ],
-                'from' => self::table(),
-                'where' => [
-                    'groups' => $group
-                ],
-                'order' => 'priority ASC'
-            ]);
+            $result = array_filter($rows, static fn (array $row): bool => $row['groups'] === $group);
 
             // priority ASC Erklärung:
             // Wir müssen den kleinsten zuerst nehmen,
             // damit die höchste Priorität zuletzt kommt und die davor überschreibt,
             // ist verwirrend, aber somit sparen wir ein Query
 
-            $javaScriptValues = [];
             $iniContent = '';
 
             foreach ($result as $data) {
@@ -1692,29 +2056,16 @@ class Translator
                     continue;
                 }
 
-                if ($Output) {
-                    $value = $Output->parse($value);
-
-                    // replace because of img src="" use url decode
-                    $value = str_replace('%5B', '[', $value);
-                    $value = str_replace('%5D', ']', $value);
-                }
 
                 if ($data['datatype'] == 'js') {
-                    $javaScriptValues[$data['var']] = $value;
                     continue;
-                }
-
-                // php und js beachten
-                if (str_contains($data['datatype'], 'js') || empty($data['datatype'])) {
-                    $javaScriptValues[$data['var']] = $value;
                 }
 
                 $value = str_replace('\\', '\\\\', $value);
                 $value = str_replace('"', '\"', $value);
                 $value = str_replace("\n", '{\n}', $value);
 
-                if ($value !== '' && $value !== ' ') {
+                if ($value !== ' ') {
                     $value = trim($value);
                 }
 
@@ -1744,33 +2095,8 @@ class Translator
             // set data
             $iniFile = $folder . str_replace('/', '_', $group) . '.ini.php';
 
-            QUIFile::unlink($iniFile);
-            QUIFile::mkfile($iniFile);
-
-            file_put_contents($iniFile, $iniContent);
-
-            // javascript
-            $jsFile = $dir . '/bin/' . $group . '/' . $lang . '.js';
-
-            QUIFile::mkdir(dirname($jsFile));
-
-            $jsContent = "define('locale/" . $group . "/" . $lang . "', ['Locale'], function(Locale)";
-            $jsContent .= '{';
-            $jsContent .= 'Locale.set("' . $lang . '", "' . $group . '", ';
-            $jsContent .= json_encode($javaScriptValues);
-            $jsContent .= ')';
-            $jsContent .= '});';
-
-            self::writeJavaScriptFile($jsFile, $jsContent);
+            $Publication->stage($iniFile, $iniContent);
         }
-
-        self::refreshJavaScriptCaches($languages);
-        QUI\Cache\Manager::clearCompleteQuiqqerCache();
-
-        QUI::getLocale()->refresh();
-        self::refreshLocalePublishVersion();
-
-        QUI::getEvents()->fireEvent('quiqqerTranslatorPublish');
     }
 
     /**
@@ -1955,7 +2281,8 @@ class Translator
                 'groups' => $whereSearch,
                 'var' => $whereSearch,
                 'datatype' => $whereSearch,
-                'datadefine' => $whereSearch
+                'datadefine' => $whereSearch,
+                'context' => $whereSearch
             ];
 
             foreach ($db_fields as $lang) {
@@ -2125,8 +2452,10 @@ class Translator
         string $var,
         bool | string $package = false,
         string $dataType = 'php,js',
-        bool | int $html = false
+        bool | int $html = false,
+        ?string $context = null
     ): void {
+        self::ensureContextSchema();
         if (empty($var) || empty($group)) {
             throw new QUI\Exception(
                 QUI::getLocale()->get(
@@ -2178,7 +2507,8 @@ class Translator
                     'var' => $var,
                     'package' => !empty($package) ? $package : '',
                     'datatype' => implode(',', $types),
-                    'html' => $html ? 1 : 0
+                    'html' => $html ? 1 : 0,
+                    'context' => $context === null ? null : LocaleContext::normalize($context)
                 ])
             );
         } catch (DbalException $Exception) {
@@ -2243,6 +2573,7 @@ class Translator
      */
     public static function update(string $group, string $var, string $packageName, array $data): void
     {
+        self::ensureContextSchema();
         $languages = self::langs();
         $_data = [];
 
@@ -2259,6 +2590,10 @@ class Translator
             }
 
             $_data[$lang] = $content;
+        }
+
+        if (array_key_exists('context', $data)) {
+            $_data['context'] = $data['context'] === null ? null : LocaleContext::normalize($data['context']);
         }
 
         $_data['html'] = 0;
@@ -2312,6 +2647,7 @@ class Translator
      */
     public static function edit(string $group, string $var, string $packageName, array $data): void
     {
+        self::ensureContextSchema();
         try {
             QUI::getDataBaseConnection()->update(
                 DoctrineUtils::quoteIdentifier(self::table()),
@@ -2340,6 +2676,7 @@ class Translator
      */
     public static function editById(int $id, array $data): void
     {
+        self::ensureContextSchema();
         try {
             QUI::getDataBaseConnection()->update(
                 DoctrineUtils::quoteIdentifier(self::table()),
@@ -2414,6 +2751,10 @@ class Translator
             } else {
                 $_data[$lang . '_edit'] = trim($data[$lang . '_edit']);
             }
+        }
+
+        if (array_key_exists('context', $data)) {
+            $_data['context'] = $data['context'] === null ? null : LocaleContext::normalize($data['context']);
         }
 
         $_data['html'] = 0;
@@ -2544,6 +2885,7 @@ class Translator
                 || $entry == 'datadefine'
                 || $entry == 'package'
                 || $entry == 'priority'
+                || $entry == 'context'
             ) {
                 continue;
             }

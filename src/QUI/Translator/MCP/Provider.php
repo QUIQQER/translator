@@ -3,6 +3,7 @@
 namespace QUI\Translator\MCP;
 
 use Doctrine\DBAL\Exception as DbalException;
+use InvalidArgumentException;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\Builder;
 use QUI;
@@ -11,6 +12,7 @@ use QUI\AI\MCP\Server;
 use QUI\AI\MCP\ToolHelper;
 use QUI\Permissions\Permission;
 use QUI\Translator\DoctrineHelper as DoctrineUtils;
+use QUI\Utils\LocaleContext;
 use Throwable;
 
 class Provider implements ProviderInterface
@@ -24,6 +26,7 @@ class Provider implements ProviderInterface
         'package',
         'datatype',
         'datadefine',
+        'context',
         'html',
         'priority'
     ];
@@ -124,6 +127,10 @@ class Provider implements ProviderInterface
                                     'type' => 'string',
                                     'description' => 'Translation datatype, for example php,js.',
                                     'default' => 'php,js'
+                                ],
+                                'context' => [
+                                    'type' => 'string',
+                                    'description' => 'Comma-separated JavaScript delivery contexts. Omit to preserve; empty means shared.'
                                 ],
                                 'html' => [
                                     'type' => 'boolean',
@@ -330,10 +337,20 @@ class Provider implements ProviderInterface
             $datatype = (string)($variable['datatype'] ?? 'php,js');
             $html = !empty($variable['html']);
             $priority = (int)($variable['priority'] ?? 0);
+            $context = null;
+
+            if (array_key_exists('context', $variable)) {
+                if (!is_string($variable['context'])) {
+                    throw new InvalidArgumentException('Locale context must be a string.');
+                }
+
+                $context = LocaleContext::normalize($variable['context']);
+            }
+
             $entry = self::getExactEntry($group, $var, $package);
 
             if (empty($entry)) {
-                QUI\Translator::add($group, $var, $package, $datatype, $html);
+                QUI\Translator::add($group, $var, $package, $datatype, $html, $context);
                 $entry = self::getExactEntry($group, $var, $package);
             }
 
@@ -342,6 +359,10 @@ class Provider implements ProviderInterface
                 'html' => $html ? 1 : 0,
                 'priority' => $priority
             ];
+
+            if ($context !== null) {
+                $data['context'] = $context;
+            }
 
             foreach (QUI\Translator::langs() as $language) {
                 if (array_key_exists($language, $translations)) {

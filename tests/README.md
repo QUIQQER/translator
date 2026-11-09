@@ -18,8 +18,8 @@ source directories are shared with the surrounding installation.
 in a second process and verifies cleanup and separation from the parent runtime.
 The publication tests exercise generated PHP and JavaScript files and rollback;
 their mocked event dispatcher does not verify the complete cache integration.
-Core's locale context integration tests cover publication, cache handling and
-execution of the generated AMD modules together.
+The combined publication, cache handling and browser execution flow requires
+separate integration validation.
 
 Focused regression checks:
 

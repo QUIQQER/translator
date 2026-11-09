@@ -1062,6 +1062,41 @@ INI;
         });
     }
 
+    public function testStandardContextBundlesContainOnlySharedAndMatchingTranslations(): void
+    {
+        $this->withLocaleDirectory(function (): void {
+            $contexts = [
+                'shared' => '',
+                'front' => 'frontend',
+                'admin' => 'administration',
+                'custom' => 'dashboard'
+            ];
+
+            foreach ($contexts as $key => $context) {
+                $this->connection->insert(Translator::table(), [
+                    'groups' => 'test/bundle',
+                    'package' => 'test/bundle',
+                    'var' => $key,
+                    'datatype' => 'js',
+                    'context' => $context,
+                    'de' => 'DE-' . $key
+                ]);
+            }
+
+            Translator::create();
+
+            foreach (['frontend' => 'front', 'administration' => 'admin'] as $context => $key) {
+                $files = Translator::getJSContextTranslationFiles('de', $context);
+                self::assertCount(1, $files);
+                $javascript = file_get_contents(reset($files));
+                self::assertStringContainsString('DE-shared', $javascript);
+                self::assertStringContainsString('DE-' . $key, $javascript);
+                self::assertStringNotContainsString('DE-custom', $javascript);
+                self::assertStringNotContainsString($key === 'front' ? 'DE-admin' : 'DE-front', $javascript);
+            }
+        });
+    }
+
     public function testMcpContextSaveAndLanguageFilteringPreserveMetadata(): void
     {
         if (!interface_exists(QUI\AI\MCP\ProviderInterface::class)) {

@@ -216,7 +216,7 @@ class Translator
      * Return the active immutable publication snapshot. An absent snapshot means
      * the regular setup has not published contexts yet.
      *
-     * @return array{version: string, contexts: list<string>, languages: list<string>}
+     * @return array{version: string, contexts: list<string>, languages: list<string>, bundledContexts?: list<string>}
      */
     public static function getJSContextManifest(): array
     {
@@ -237,11 +237,11 @@ class Translator
     }
 
     /**
-     * Return common and requested context modules from one publication snapshot.
+     * Return one bundle for standard contexts, or common and custom context modules.
      * Existing getJSTranslationFiles() remains the complete legacy collection.
      * Context selection requires a publication created by the regular setup.
      *
-     * @param array{version: string, contexts: list<string>, languages: list<string>}|null $manifest
+     * @param array{version: string, contexts: list<string>, languages: list<string>, bundledContexts?: list<string>}|null $manifest
      * @return array<string, string>
      */
     public static function getJSContextTranslationFiles(
@@ -270,8 +270,13 @@ class Translator
         }
 
         $result = [];
+        $tokens = ['common', 'c' . bin2hex($context)];
 
-        foreach (['common', 'c' . bin2hex($context)] as $token) {
+        if (in_array($context, $manifest['bundledContexts'] ?? [], true)) {
+            $tokens = ['b' . bin2hex($context)];
+        }
+
+        foreach ($tokens as $token) {
             $prefix = 'locale/_contexts/' . $manifest['version'] . '/' . $token;
             $result[$prefix] = self::dir() . 'bin/' . substr($prefix, 7) . '/' . $lang . '.js';
         }
@@ -1710,6 +1715,8 @@ class Translator
             $Publication = new PublicationTransaction(self::dir());
 
             foreach ($collection['modules'] as $language => $contexts) {
+                $sources = [];
+
                 foreach ($contexts as $context => $groups) {
                     $token = $context === 'common' ? 'common' : 'c' . bin2hex($context);
                     $module = 'locale/_contexts/' . $version . '/' . $token . '/' . $language;
@@ -1723,6 +1730,23 @@ class Translator
                     $content = "define('" . $module . "', ['Locale'], function(Locale){var data=" . $payload . ';';
                     $content .= 'Object.keys(data.groups).forEach(function(group){';
                     $content .= 'Locale.set(data.language,group,data.groups[group]);});return data;});';
+                    $Publication->stage($file, $content);
+                    $sources[$context] = $content;
+                }
+
+                foreach (['frontend', 'administration'] as $context) {
+                    $prefix = 'locale/_contexts/' . $version . '/';
+                    $token = 'b' . bin2hex($context);
+                    $module = $prefix . $token . '/' . $language;
+                    $dependencies = [
+                        $prefix . 'common/' . $language,
+                        $prefix . 'c' . bin2hex($context) . '/' . $language
+                    ];
+                    $content = $sources['common'] . "\n" . $sources[$context] . "\n";
+                    $content .= 'define(' . json_encode($module, JSON_THROW_ON_ERROR) . ',';
+                    $content .= json_encode($dependencies, JSON_THROW_ON_ERROR);
+                    $content .= ',function(common,context){return context;});';
+                    $file = self::dir() . 'bin/_contexts/' . $version . '/' . $token . '/' . $language . '.js';
                     $Publication->stage($file, $content);
                 }
             }
@@ -1741,7 +1765,8 @@ class Translator
             $manifest = [
                 'version' => $version,
                 'contexts' => $collection['contexts'],
-                'languages' => $languages
+                'languages' => $languages,
+                'bundledContexts' => ['frontend', 'administration']
             ];
             $manifestFile = self::dir() . 'bin/_contexts/manifest.json';
             $Publication->stage($manifestFile, json_encode($manifest, JSON_THROW_ON_ERROR));

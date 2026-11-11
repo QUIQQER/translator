@@ -473,6 +473,14 @@ define('package/quiqqer/translator/bin/Panel', [
                 });
 
                 cols.push({
+                    header: Locale.get('quiqqer/translator', 'grid.title.context'),
+                    dataIndex: 'context',
+                    dataType: 'string',
+                    width: 180,
+                    editable: true
+                });
+
+                cols.push({
                     header: Locale.get('quiqqer/translator', 'grid.title.html'),
                     dataIndex: 'html',
                     dataType: 'bool',
@@ -931,6 +939,44 @@ define('package/quiqqer/translator/bin/Panel', [
             var Column = columnModel[index],
                 dev = (QUIQQER_CONFIG.globals.development).toInt();
 
+            if (Column.dataIndex === 'context') {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = localeData.context ?? '';
+                input.dataset.name = 'context';
+                const label = document.createElement('label');
+                label.textContent = Locale.get('quiqqer/translator', 'grid.title.context');
+                label.append(input);
+                const window = new QUIConfirm({
+                    title: Locale.get('quiqqer/translator', 'grid.title.context'),
+                    autoclose: false,
+                    events: {
+                        onOpen: function(Window) {
+                            Window.getContent().append(label);
+                            input.focus();
+                        },
+                        onSubmit: function(Window) {
+                            const updated = {
+                                id: localeData.id,
+                                groups: localeData.groups,
+                                var: localeData.var,
+                                package: localeData.package,
+                                datatype: localeData.datatype,
+                                html: localeData.html,
+                                priority: localeData.priority,
+                                context: input.value
+                            };
+                            self.$saveData(updated, function() {
+                                Window.close();
+                                self.$loadGrid();
+                            });
+                        }
+                    }
+                });
+                window.open();
+                return;
+            }
+
             if (!dev && !this.$langs.contains(Column.dataIndex)) {
                 return;
             }
@@ -1233,6 +1279,7 @@ define('package/quiqqer/translator/bin/Panel', [
                 label_js: Locale.get('quiqqer/translator', 'add.window.js.label'),
                 label_php: Locale.get('quiqqer/translator', 'add.window.php.label'),
                 label_html: Locale.get('quiqqer/translator', 'add.window.html.label'),
+                label_context: Locale.get('quiqqer/translator', 'grid.title.context'),
                 placeholder_maingroup: Locale.get('quiqqer/translator', 'add.window.maingroup.placeholder'),
                 placeholder_subgroup: Locale.get('quiqqer/translator', 'add.window.subgroup.placeholder'),
                 placeholder_variable: Locale.get('quiqqer/translator', 'add.window.variable.placeholder'),
@@ -1306,6 +1353,7 @@ define('package/quiqqer/translator/bin/Panel', [
                             group: GroupInput.value.trim() + '/' + SubGroupInput.value.trim(),
                             'var': VariableInput.value.trim(),
                             datatype: datatype.join(','),
+                            context: Content.querySelector('[data-name="context"]').value,
                             html: Content.getElement('[name="qui-translator-add-variable-html"]').checked ? 1 : 0
                         });
                     },

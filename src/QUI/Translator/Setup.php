@@ -55,6 +55,7 @@ class Setup
             throw new QUI\Exception('Database table name is not available');
         }
 
+        QUI\Translator::ensureContextSchema();
         $Table = self::introspectTranslatorTable($table);
 
         if (!$Table->hasColumn('id')) {

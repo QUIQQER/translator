@@ -8,6 +8,7 @@
             <field type="string" length="255">var</field>
             <field type="string" length="20" default="">datatype</field>
             <field type="string" length="200" default="">datadefine</field>
+            <field type="text" nullable="true" default="null">context</field>
             <field type="smallint" default="0">html</field>
             <field type="smallint" default="0">priority</field>
             <field type="string" length="255" nullable="true" default="null">package</field>

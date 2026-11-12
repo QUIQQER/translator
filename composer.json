@@ -16,7 +16,7 @@
     },
     "require": {
         "php": "^8.2",
-        "quiqqer/core": "^2",
+        "quiqqer/core": "^2.42.1",
         "quiqqer/utils": "^2.9.0",
         "quiqqer/qui": "^1"
     },

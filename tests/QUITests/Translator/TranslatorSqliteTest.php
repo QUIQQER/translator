@@ -477,7 +477,7 @@ INI;
             $paths = [
                 'de/LC_MESSAGES/test_rollback.ini.php', 'en/LC_MESSAGES/test_rollback.ini.php',
                 'bin/test/rollback/de.js', 'bin/test/rollback/en.js',
-                'bin/_cache/de.js', 'bin/_cache/en.js', 'bin/_contexts/manifest.json'
+                'bin/_cache/de.js', 'bin/_cache/en.js', 'bin/_contexts/manifest.json', '.context-snapshot.json'
             ];
             $previous = [];
 
@@ -531,7 +531,7 @@ INI;
             ));
             $currentFiles = Translator::getJSContextTranslationFiles('de', 'namescoreDashboard');
             self::assertStringContainsString('Uncommitted text', file_get_contents(array_values($currentFiles)[1]));
-            self::assertSame($oldContents, array_map('file_get_contents', $oldFiles));
+            self::assertSame($oldFiles, $currentFiles);
         });
     }
 
@@ -573,7 +573,7 @@ INI;
             $previousManifest = file_get_contents($manifestFile);
             $previous = [];
 
-            foreach (['de/LC_MESSAGES/test_recovery.ini.php', 'bin/test/recovery/de.js', 'bin/_cache/de.js'] as $path) {
+            foreach (['de/LC_MESSAGES/test_recovery.ini.php', 'bin/test/recovery/de.js', 'bin/_cache/de.js', '.context-snapshot.json'] as $path) {
                 $previous[$path] = file_get_contents($directory . $path);
             }
 
@@ -657,7 +657,7 @@ INI;
             Translator::create();
             $manifest = Translator::getJSContextManifest();
             $javascript = file_get_contents($directory . 'bin/_cache/de.js');
-            file_put_contents($directory . '.context-snapshots/' . $manifest['version'] . '.json', '{"format":0}');
+            file_put_contents($directory . '.context-snapshot.json', '{"format":0}');
             $this->connection->update(Translator::table(), ['de' => 'Draft text'], ['groups' => 'test/snapshot']);
 
             try {
@@ -1088,12 +1088,18 @@ INI;
             foreach (['frontend' => 'front', 'administration' => 'admin'] as $context => $key) {
                 $files = Translator::getJSContextTranslationFiles('de', $context);
                 self::assertCount(1, $files);
+                self::assertSame(['locale/_contexts/b' . bin2hex($context)], array_keys($files));
                 $javascript = file_get_contents(reset($files));
                 self::assertStringContainsString('DE-shared', $javascript);
                 self::assertStringContainsString('DE-' . $key, $javascript);
                 self::assertStringNotContainsString('DE-custom', $javascript);
                 self::assertStringNotContainsString($key === 'front' ? 'DE-admin' : 'DE-front', $javascript);
             }
+
+            self::assertSame(
+                ['locale/_contexts/common', 'locale/_contexts/c' . bin2hex('dashboard')],
+                array_keys(Translator::getJSContextTranslationFiles('de', 'dashboard'))
+            );
         });
     }
 
@@ -1170,7 +1176,7 @@ INI;
         self::assertSame(['de', 'en'], Translator::langs());
     }
 
-    public function testContextPublicationKeepsPreviousGenerationAndClearsRemovedContent(): void
+    public function testContextPublicationReplacesFilesAndClearsRemovedContent(): void
     {
         $this->withLocaleDirectory(function (string $directory): void {
             Translator::add('test/context', 'title', 'test/context', 'js', false, 'namescoreDashboard');
@@ -1188,11 +1194,130 @@ INI;
             $current = Translator::getJSContextManifest();
             self::assertNotSame($previous['version'], $current['version']);
             self::assertContains('namescoreDashboard', $current['contexts']);
-            self::assertStringContainsString('Unique translated title', file_get_contents($oldFile));
             $newFiles = Translator::getJSContextTranslationFiles('de', 'namescoreDashboard');
+            self::assertSame($previousFiles, $newFiles);
             self::assertStringNotContainsString('Unique translated title', file_get_contents(array_values($newFiles)[1]));
             self::assertStringNotContainsString('Unique translated title', file_get_contents($directory . 'bin/test/context/de.js'));
             self::assertSame($previousFiles, Translator::getJSContextTranslationFiles('de', 'namescoreDashboard', $previous));
+        });
+    }
+
+    public function testRepeatedPublicationDoesNotAccumulateFiles(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            $this->connection->insert(Translator::table(), [
+                'groups' => 'test/storage', 'package' => 'test/storage', 'var' => 'title',
+                'datatype' => 'php,js', 'de' => 'First text', 'en' => 'English text'
+            ]);
+            Translator::create();
+            $inventory = static function () use ($directory): array {
+                $paths = [];
+
+                foreach (
+                    new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(
+                        $directory,
+                        \FilesystemIterator::SKIP_DOTS
+                    )) as $file
+                ) {
+                    $paths[] = $file->getPathname();
+                }
+
+                sort($paths);
+                return $paths;
+            };
+            $before = $inventory();
+
+            for ($run = 0; $run < 3; $run++) {
+                $this->connection->update(Translator::table(), ['de' => 'Changed ' . $run], ['groups' => 'test/storage']);
+                Translator::publish('test/storage');
+                self::assertSame($before, $inventory());
+                $files = Translator::getJSContextTranslationFiles('de', 'frontend');
+                self::assertStringContainsString('Changed ' . $run, file_get_contents(array_values($files)[0]));
+            }
+
+            self::assertCount(4, glob($directory . 'bin/_contexts/*/*.js'));
+            self::assertFileExists($directory . '.context-snapshot.json');
+        });
+    }
+
+    public function testCleanupWaitsForSuccessfulCacheCompletion(): void
+    {
+        $this->withLocaleDirectory(function (string $directory): void {
+            $old = $directory . 'bin/_contexts/' . md5('old');
+            mkdir($old, 0700, true);
+            file_put_contents($old . '/de.js', 'old');
+            $completions = 0;
+            QUI::$Events->method('fireEvent')->willReturnCallback(
+                static function (string $event) use (&$completions): array {
+                    if ($event === 'quiqqerTranslatorPublish' && ++$completions === 1) {
+                        throw new \RuntimeException('Cache completion interrupted');
+                    }
+
+                    return [];
+                }
+            );
+
+            try {
+                Translator::create();
+                self::fail('Cache completion must interrupt the migration.');
+            } catch (\RuntimeException $Exception) {
+                self::assertSame('Cache completion interrupted', $Exception->getMessage());
+            }
+
+            self::assertFileExists($old . '/de.js');
+            self::assertFileDoesNotExist($directory . '.context-storage-v2-cleaned');
+            self::assertFileExists($directory . '.publication-journal.json');
+            Translator::getJSContextManifest();
+            self::assertSame(2, $completions);
+            Translator::create();
+            self::assertDirectoryDoesNotExist($old);
+            self::assertFileExists($directory . '.context-storage-v2-cleaned');
+        });
+    }
+
+    #[DataProvider('publicationModes')]
+    public function testSetupPublicationMigratesOldSnapshotsWithoutPublishingOtherDrafts(bool $complete): void
+    {
+        $this->withLocaleDirectory(function (string $directory) use ($complete): void {
+            foreach (['test/migrate', 'test/other'] as $group) {
+                $this->connection->insert(Translator::table(), [
+                    'groups' => $group, 'package' => $group, 'var' => 'title',
+                    'datatype' => 'php,js', 'de' => 'Published ' . $group, 'en' => 'English'
+                ]);
+            }
+
+            Translator::create();
+            $manifest = Translator::getJSContextManifest();
+            unset($manifest['format']);
+            $manifestFile = $directory . 'bin/_contexts/manifest.json';
+            file_put_contents($manifestFile, json_encode($manifest));
+            mkdir($directory . '.context-snapshots');
+            rename($directory . '.context-snapshot.json', $directory . '.context-snapshots/' . $manifest['version'] . '.json');
+            mkdir($directory . 'bin/_contexts/' . $manifest['version']);
+            file_put_contents($directory . 'bin/_contexts/' . $manifest['version'] . '/old.js', 'old module');
+            unlink($directory . '.context-storage-v2-cleaned');
+            $this->connection->update(Translator::table(), ['de_edit' => 'Unpublished other draft'], ['groups' => 'test/other']);
+
+            if ($complete) {
+                QUI\Setup::finish();
+            } else {
+                // Exercise the actual targeted package setup publication path without importing shared package files.
+                $Package = $this->createMock(QUI\Package\Package::class);
+                $Package->method('getName')->willReturn('test/migrate');
+                $Package->method('getDir')->willReturn($directory);
+                file_put_contents($directory . 'locale.xml', '<locales><groups name="test/migrate"/></locales>');
+                (new \ReflectionMethod(QUI\Package\Package::class, 'setupLocalePublish'))->invoke($Package);
+            }
+
+            self::assertSame(2, Translator::getJSContextManifest()['format']);
+            self::assertDirectoryDoesNotExist($directory . '.context-snapshots');
+            self::assertDirectoryDoesNotExist($directory . 'bin/_contexts/' . $manifest['version']);
+            self::assertFileExists($directory . '.context-storage-v2-cleaned');
+            $files = Translator::getJSContextTranslationFiles('de', 'frontend');
+            self::assertStringContainsString(
+                $complete ? 'Unpublished other draft' : 'Published test\\/other',
+                file_get_contents(array_values($files)[0])
+            );
         });
     }
 

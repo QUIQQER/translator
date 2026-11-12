@@ -18,8 +18,16 @@ source directories are shared with the surrounding installation.
 in a second process and verifies cleanup and separation from the parent runtime.
 The publication tests exercise generated PHP and JavaScript files and rollback;
 their mocked event dispatcher does not verify the complete cache integration.
-Core's locale context integration tests cover publication, cache handling and
-execution of the generated AMD modules together.
+The combined publication, cache handling and browser execution flow requires
+separate integration validation.
+
+Stable-path regression coverage includes repeated publication without file accumulation,
+single-group draft preservation, migration through the system-finish and targeted
+package-publication paths, cleanup retry after a deletion error and a completed marker
+that skips directory inspection. These use the existing isolated package bootstrap.
+`LegacyPublicationCleanupTest` checks filesystem migration without additional databases.
+Core's `LocaleContext.test.cjs` exercises the actual RequireJS loader for both manifest
+formats, newer files on open pages, language changes and failed-load retries.
 
 Focused regression checks:
 

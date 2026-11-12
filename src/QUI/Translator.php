@@ -18,6 +18,7 @@ use QUI;
 use QUI\Cache\Manager as CacheManager;
 use QUI\Database\Exception;
 use QUI\Translator\DoctrineHelper as DoctrineUtils;
+use QUI\Translator\LegacyPublicationCleanup;
 use QUI\Translator\PublicationTransaction;
 use QUI\Utils\StringHelper;
 use QUI\Utils\LocaleContext;
@@ -213,10 +214,10 @@ class Translator
     }
 
     /**
-     * Return the active immutable publication snapshot. An absent snapshot means
+     * Return the active publication manifest. An absent manifest means
      * the regular setup has not published contexts yet.
      *
-     * @return array{version: string, contexts: list<string>, languages: list<string>, bundledContexts?: list<string>}
+     * @return array{version: string, contexts: list<string>, languages: list<string>, bundledContexts?: list<string>, format?: int}
      */
     public static function getJSContextManifest(): array
     {
@@ -241,7 +242,7 @@ class Translator
      * Existing getJSTranslationFiles() remains the complete legacy collection.
      * Context selection requires a publication created by the regular setup.
      *
-     * @param array{version: string, contexts: list<string>, languages: list<string>, bundledContexts?: list<string>}|null $manifest
+     * @param array{version: string, contexts: list<string>, languages: list<string>, bundledContexts?: list<string>, format?: int}|null $manifest
      * @return array<string, string>
      */
     public static function getJSContextTranslationFiles(
@@ -277,7 +278,8 @@ class Translator
         }
 
         foreach ($tokens as $token) {
-            $prefix = 'locale/_contexts/' . $manifest['version'] . '/' . $token;
+            $prefix = 'locale/_contexts/'
+                . (($manifest['format'] ?? 1) === 2 ? '' : $manifest['version'] . '/') . $token;
             $result[$prefix] = self::dir() . 'bin/' . substr($prefix, 7) . '/' . $lang . '.js';
         }
 
@@ -1594,7 +1596,7 @@ class Translator
         }
     }
 
-    /** Publish the complete collection and activate one immutable context generation. */
+    /** Publish the complete collection using stable context paths. */
     public static function create(): void
     {
         self::publishCollection(null);
@@ -1683,7 +1685,7 @@ class Translator
                 self::importExistingContextMetadata();
             }
 
-            $snapshot = self::readPublicationSnapshot($previous['version']);
+            $snapshot = self::readPublicationSnapshot($previous['version'], ($previous['format'] ?? 1) === 2);
             $complete = $group === null || $snapshot === null;
 
             if ($complete) {
@@ -1713,14 +1715,15 @@ class Translator
             $collection = QUI\Translator\ContextCollection::build($rows, $languages, $previous['contexts']);
             $version = self::createLocalePublishVersion();
             $Publication = new PublicationTransaction(self::dir());
+            $hasCustomContexts = array_diff($collection['contexts'], ['frontend', 'administration']) !== [];
 
             foreach ($collection['modules'] as $language => $contexts) {
                 $sources = [];
 
                 foreach ($contexts as $context => $groups) {
                     $token = $context === 'common' ? 'common' : 'c' . bin2hex($context);
-                    $module = 'locale/_contexts/' . $version . '/' . $token . '/' . $language;
-                    $file = self::dir() . 'bin/_contexts/' . $version . '/' . $token . '/' . $language . '.js';
+                    $module = 'locale/_contexts/' . $token . '/' . $language;
+                    $file = self::dir() . 'bin/_contexts/' . $token . '/' . $language . '.js';
                     $payload = json_encode([
                         'language' => $language,
                         'version' => $version,
@@ -1730,12 +1733,18 @@ class Translator
                     $content = "define('" . $module . "', ['Locale'], function(Locale){var data=" . $payload . ';';
                     $content .= 'Object.keys(data.groups).forEach(function(group){';
                     $content .= 'Locale.set(data.language,group,data.groups[group]);});return data;});';
-                    $Publication->stage($file, $content);
+                    // Standard modules are embedded in their bundles. Custom loading also needs a common fallback.
+                    if (
+                        !in_array($context, ['frontend', 'administration'], true)
+                        && ($context !== 'common' || $hasCustomContexts)
+                    ) {
+                        $Publication->stage($file, $content);
+                    }
                     $sources[$context] = $content;
                 }
 
                 foreach (['frontend', 'administration'] as $context) {
-                    $prefix = 'locale/_contexts/' . $version . '/';
+                    $prefix = 'locale/_contexts/';
                     $token = 'b' . bin2hex($context);
                     $module = $prefix . $token . '/' . $language;
                     $dependencies = [
@@ -1746,7 +1755,7 @@ class Translator
                     $content .= 'define(' . json_encode($module, JSON_THROW_ON_ERROR) . ',';
                     $content .= json_encode($dependencies, JSON_THROW_ON_ERROR);
                     $content .= ',function(common,context){return context;});';
-                    $file = self::dir() . 'bin/_contexts/' . $version . '/' . $token . '/' . $language . '.js';
+                    $file = self::dir() . 'bin/_contexts/' . $token . '/' . $language . '.js';
                     $Publication->stage($file, $content);
                 }
             }
@@ -1759,10 +1768,11 @@ class Translator
 
             self::writeLegacyCollection($collection['legacy'], $languages, $Publication);
             $Publication->stage(
-                self::dir() . '.context-snapshots/' . $version . '.json',
-                json_encode(['format' => 1, 'rows' => $rows], JSON_THROW_ON_ERROR)
+                self::dir() . '.context-snapshot.json',
+                json_encode(['format' => 1, 'version' => $version, 'rows' => $rows], JSON_THROW_ON_ERROR)
             );
             $manifest = [
+                'format' => 2,
                 'version' => $version,
                 'contexts' => $collection['contexts'],
                 'languages' => $languages,
@@ -1773,6 +1783,7 @@ class Translator
             $Publication->commit($manifestFile);
             self::finishPublication();
             $Publication->complete();
+            LegacyPublicationCleanup::run(self::dir());
         }, self::finishPublication(...));
     }
 
@@ -1781,16 +1792,16 @@ class Translator
      *
      * @return list<array<string, mixed>>|null
      */
-    private static function readPublicationSnapshot(string $version): ?array
+    private static function readPublicationSnapshot(string $version, bool $fixedPaths): ?array
     {
         if ($version === '') {
             return null;
         }
 
-        $file = self::dir() . '.context-snapshots/' . $version . '.json';
+        $file = self::dir() . ($fixedPaths ? '.context-snapshot.json' : '.context-snapshots/' . $version . '.json');
 
         if (!is_file($file)) {
-            if (is_dir(self::dir() . '.context-snapshots')) {
+            if ($fixedPaths || is_dir(self::dir() . '.context-snapshots')) {
                 throw new QUI\Exception('Published locale snapshot is missing');
             }
 
@@ -1799,7 +1810,12 @@ class Translator
 
         $snapshot = json_decode((string)file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
 
-        if (!is_array($snapshot) || ($snapshot['format'] ?? null) !== 1 || !is_array($snapshot['rows'] ?? null)) {
+        if (
+            !is_array($snapshot)
+            || ($snapshot['format'] ?? null) !== 1
+            || !is_array($snapshot['rows'] ?? null)
+            || ($fixedPaths && ($snapshot['version'] ?? null) !== $version)
+        ) {
             throw new QUI\Exception('Invalid published locale snapshot');
         }
 
